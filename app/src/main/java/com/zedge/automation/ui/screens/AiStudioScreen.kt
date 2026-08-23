@@ -50,6 +50,16 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.annotation.SuppressLint
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.viewinterop.AndroidView
+import com.zedge.automation.data.StableAudioAuth
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PastelOrange
 import com.zedge.automation.ui.theme.PrimaryPink
@@ -57,10 +67,21 @@ import com.zedge.automation.ui.theme.SkyBlue
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
+import kotlinx.coroutines.launch
 
+@SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun AiStudioScreen(vm: MainViewModel) {
     val bulkStatuses by vm.bulkStatuses.collectAsState()
+
+    // ── Stable Audio auth state ──
+    val scope = rememberCoroutineScope()
+    val auth = remember { StableAudioAuth(vm.settings) }
+    val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    var authStatus by remember { mutableStateOf("") }
+    var authBusy by remember { mutableStateOf(false) }
+    var authSuccess by remember { mutableStateOf(false) }
+    var authError by remember { mutableStateOf(false) }
 
     var duration by remember { mutableFloatStateOf(30f) }
     var gainPercent by remember { mutableFloatStateOf(200f) }
@@ -75,10 +96,102 @@ fun AiStudioScreen(vm: MainViewModel) {
     val runningCount = bulkStatuses.count { it.status == "Composing" || it.status == "Processing audio..." }
     val isRunning = bulkStatuses.any { it.status == "Composing" || it.status == "Processing audio..." }
 
+    Box(Modifier.fillMaxSize()) {
+
     LazyColumn(
         Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // ── Stable Audio Token (Auto-Create) ──
+        item {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "\uD83C\uDFB5 Stable Audio Account",
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Box(
+                            Modifier
+                                .background(
+                                    if (vm.settings.stableAudioToken.isNotBlank()) MintGreen.copy(alpha = 0.15f)
+                                    else Color.White.copy(alpha = 0.07f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                if (vm.settings.stableAudioToken.isNotBlank()) "\u2713 Active" else "No Token",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (vm.settings.stableAudioToken.isNotBlank()) MintGreen else TextMuted,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    if (authStatus.isNotBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (authBusy) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Violet, strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(
+                                authStatus,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = when {
+                                    authError -> MaterialTheme.colorScheme.error
+                                    authSuccess -> MintGreen
+                                    else -> TextMuted
+                                }
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                authBusy = true; authError = false; authSuccess = false
+                                authStatus = "Starting automation..."
+                                val wv = webViewRef.value
+                                if (wv == null) {
+                                    authStatus = "WebView loading, please wait..."
+                                    authBusy = false; return@launch
+                                }
+                                val result = auth.performAutoAccountCreation(wv) { msg -> authStatus = msg }
+                                authBusy = false
+                                if (result.success) {
+                                    authSuccess = true
+                                    authStatus = "\u2713 Token synced! Ready for generation."
+                                } else {
+                                    authError = true
+                                    authStatus = result.error ?: "Failed"
+                                }
+                            }
+                        },
+                        enabled = !authBusy,
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Violet)
+                    ) {
+                        if (authBusy) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            if (authBusy) "Creating account..." else "Auto-Create Account \u0026 Sync Token",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+
         // ── Header ──
         item {
             Column {
@@ -150,22 +263,29 @@ fun AiStudioScreen(vm: MainViewModel) {
                         color = TextMuted
                     )
 
-                    // Settings grid
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        SettingInput("Duration", "${duration.toInt()}s", Modifier.weight(1f)) {
-                            it.toFloatOrNull()?.let { v -> duration = v.coerceIn(5f, 180f) }
+                    // Settings grid — 2×2 layout (wider fields, easier to tap)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SettingInput("Duration (s)", "${duration.toInt()}", Modifier.weight(1f)) {
+                                it.toFloatOrNull()?.let { v -> duration = v.coerceIn(5f, 180f) }
+                            }
+                            SettingInput("Gain %", "${gainPercent.toInt()}", Modifier.weight(1f)) {
+                                it.toFloatOrNull()?.let { v -> gainPercent = v.coerceIn(10f, 500f) }
+                            }
                         }
-                        SettingInput("Gain %", "${gainPercent.toInt()}%", Modifier.weight(1f)) {
-                            it.toFloatOrNull()?.let { v -> gainPercent = v.coerceIn(10f, 500f) }
-                        }
-                        SettingInput("Silence", silenceThreshold.toString(), Modifier.weight(1f)) {
-                            it.toFloatOrNull()?.let { v -> silenceThreshold = v.coerceIn(0.001f, 0.5f) }
-                        }
-                        SettingInput("Pad ms", "${padMs.toInt()}", Modifier.weight(1f)) {
-                            it.toFloatOrNull()?.let { v -> padMs = v.coerceIn(0f, 1000f) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            SettingInput("Silence Threshold", silenceThreshold.toString(), Modifier.weight(1f)) {
+                                it.toFloatOrNull()?.let { v -> silenceThreshold = v.coerceIn(0.001f, 0.5f) }
+                            }
+                            SettingInput("Pad (ms)", "${padMs.toInt()}", Modifier.weight(1f)) {
+                                it.toFloatOrNull()?.let { v -> padMs = v.coerceIn(0f, 1000f) }
+                            }
                         }
                     }
 
@@ -309,6 +429,38 @@ fun AiStudioScreen(vm: MainViewModel) {
         // Bottom spacer
         item { Spacer(Modifier.height(8.dp)) }
     }
+
+    // Hidden WebView — background-এ Stable Audio automation চালায়, ইউজার দেখবে না
+    AndroidView(
+        factory = { ctx ->
+            WebView(ctx).apply {
+                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
+                alpha = 0f
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.databaseEnabled = true
+                settings.allowFileAccess = true
+                settings.userAgentString = settings.userAgentString.replace("wv", "")
+                val wv = this
+                CookieManager.getInstance().apply {
+                    setAcceptCookie(true)
+                    setAcceptThirdPartyCookies(wv, true)
+                }
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        settings.domStorageEnabled = true
+                    }
+                }
+                webChromeClient = WebChromeClient()
+                webViewRef.value = this
+                loadUrl(StableAudioAuth.STABLE_AUDIO_URL)
+            }
+        },
+        modifier = Modifier.fillMaxWidth().height(1.dp)
+    )
+
+    } // end Box
 }
 
 @Composable

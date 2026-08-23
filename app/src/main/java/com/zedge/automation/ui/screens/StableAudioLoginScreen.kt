@@ -288,62 +288,52 @@ fun StableAudioLoginScreen(
                 }
             }
 
-            // Info text
+            // Info text — automation runs silently in background
             item {
                 Text(
-                    "The WebView below loads stableaudio.com. You can also log in manually — " +
-                        "tap \"Extract Token\" after logging in to save the token.",
+                    "Automation runs in the background — account creation is fully automatic. No manual steps needed.",
                     color = TextMuted,
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center
                 )
             }
 
-            // WebView
+            // Hidden WebView — background-এ কাজ করে, ইউজার দেখবে না
             item {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    modifier = Modifier.fillMaxWidth().height(450.dp)
-                ) {
-                    AndroidView(
-                        factory = { ctx ->
-                            WebView(ctx).apply {
-                                layoutParams = ViewGroup.LayoutParams(
-                                    ViewGroup.LayoutParams.MATCH_PARENT,
-                                    ViewGroup.LayoutParams.MATCH_PARENT
-                                )
-                                settings.javaScriptEnabled = true
-                                settings.domStorageEnabled = true
-                                settings.databaseEnabled = true
-                                settings.allowFileAccess = true
-                                settings.userAgentString = settings.userAgentString.replace(
-                                    "wv", ""
-                                ) // Remove WebView identifier
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                1  // 1px — DOM-এ থাকে কিন্তু দৃশ্যমান নয়
+                            )
+                            alpha = 0f
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.databaseEnabled = true
+                            settings.allowFileAccess = true
+                            settings.userAgentString = settings.userAgentString.replace("wv", "")
 
-                                // Enable cookies (needed for Auth0)
-                                val webViewInstance = this
-                                CookieManager.getInstance().apply {
-                                    setAcceptCookie(true)
-                                    setAcceptThirdPartyCookies(webViewInstance, true)
-                                }
-
-                                webViewClient = object : WebViewClient() {
-                                    override fun onPageFinished(view: WebView?, url: String?) {
-                                        super.onPageFinished(view, url)
-                                        // Enable DOM storage after page load
-                                        settings.domStorageEnabled = true
-                                    }
-                                }
-                                webChromeClient = WebChromeClient()
-
-                                webViewRef.value = this
-                                loadUrl(StableAudioAuth.STABLE_AUDIO_URL)
+                            val webViewInstance = this
+                            CookieManager.getInstance().apply {
+                                setAcceptCookie(true)
+                                setAcceptThirdPartyCookies(webViewInstance, true)
                             }
-                        },
-                        modifier = Modifier.fillMaxSize().padding(4.dp)
-                    )
-                }
+
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    settings.domStorageEnabled = true
+                                }
+                            }
+                            webChromeClient = WebChromeClient()
+
+                            webViewRef.value = this
+                            loadUrl(StableAudioAuth.STABLE_AUDIO_URL)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(1.dp)  // invisible but functional
+                )
             }
         }
     }

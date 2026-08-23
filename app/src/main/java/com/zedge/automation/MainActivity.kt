@@ -78,8 +78,7 @@ private fun allTabs(): List<Tab> = listOf(
     Tab("upload", "Queue", Icons.Filled.CloudUpload),
     Tab("aistudio", "Studio", Icons.Filled.AutoFixHigh),
     Tab("schedule", "Calendar", Icons.Filled.CalendarMonth),
-    Tab("distribute", "Share", Icons.Filled.Share),
-    Tab("settings", "Settings", Icons.Filled.Settings)
+    Tab("distribute", "Distribute", Icons.Filled.Share)
 )
 
 class MainActivity : ComponentActivity() {
@@ -142,7 +141,14 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
                         maxLines = 1
                     )
                 }
-                Spacer(Modifier.width(8.dp))
+                Spacer(Modifier.width(4.dp))
+                IconButton(
+                    onClick = { navController.navigate("settings") { launchSingleTop = true } },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings", tint = TextMuted, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(4.dp))
                 Box {
                     var expanded by remember { mutableStateOf(false) }
                     Row(
