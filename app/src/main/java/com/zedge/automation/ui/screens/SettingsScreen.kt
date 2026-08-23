@@ -56,7 +56,7 @@ fun SettingsScreen(vm: MainViewModel) {
             Text("Keyগুলো শুধু এই ডিভাইসে সেভ থাকে — ওয়েব ড্যাশবোর্ডের localStorage-এর মতোই", color = TextMuted, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("\uD83E\uDD16 Gemini AI Metadata", fontWeight = FontWeight.SemiBold)
@@ -89,7 +89,7 @@ fun SettingsScreen(vm: MainViewModel) {
             }
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("\uD83C\uDFB5 Stable Audio Token", fontWeight = FontWeight.SemiBold)

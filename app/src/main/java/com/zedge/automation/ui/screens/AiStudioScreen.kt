@@ -72,7 +72,7 @@ fun AiStudioScreen(vm: MainViewModel) {
             Text("Stable Audio দিয়ে মিউজিক জেনারেট + Gemini মেটাডাটা", color = TextMuted, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         prompt, { prompt = it },
@@ -140,7 +140,7 @@ fun AiStudioScreen(vm: MainViewModel) {
             Text("Bulk AI Generation", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
                         bulkPrompts, { bulkPrompts = it },
@@ -162,7 +162,7 @@ fun AiStudioScreen(vm: MainViewModel) {
             }
         }
         items(bulkStatuses) { s ->
-            Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Row(Modifier.padding(10.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(s.prompt, Modifier.weight(1f), maxLines = 1, style = MaterialTheme.typography.bodySmall)
                     Text(

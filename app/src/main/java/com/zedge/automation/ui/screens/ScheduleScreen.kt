@@ -108,7 +108,7 @@ fun ScheduleScreen(vm: MainViewModel) {
                             containerColor = when {
                                 isToday -> PrimaryPink
                                 count > 0 -> Color(0x1A1E90FF)
-                                else -> Color.White
+                                else -> MaterialTheme.colorScheme.surface
                             }
                         )
                     ) {
@@ -142,7 +142,7 @@ fun ScheduleScreen(vm: MainViewModel) {
         }
         item {
             val todayCount = countsByDay[today] ?: 0
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Row(Modifier.padding(14.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Today (Dhaka)", fontWeight = FontWeight.SemiBold)
                     Text("$todayCount item(s)", color = MintGreen, fontWeight = FontWeight.Bold)

@@ -3,6 +3,7 @@ package com.zedge.automation.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.zedge.automation.data.MetaData
+import com.zedge.automation.ui.AudioPlayer
+import com.zedge.automation.ui.WallpaperPreviewDialog
 import com.zedge.automation.data.QueueItem
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PastelOrange
@@ -68,6 +73,7 @@ fun UploadQueueScreen(vm: MainViewModel) {
     var showMetaForm by remember { mutableStateOf(false) }
     var editItem by remember { mutableStateOf<QueueItem?>(null) }
     var deleteConfirm by remember { mutableStateOf<QueueItem?>(null) }
+    var previewItem by remember { mutableStateOf<QueueItem?>(null) }
 
     val pickFiles = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) {
@@ -82,7 +88,7 @@ fun UploadQueueScreen(vm: MainViewModel) {
             Text("Wallpaper (JPEG/PNG) অথবা Ringtone (MP3) আপলোড করুন — Gemini AI অটো-মেটাডাটা সহ", color = TextMuted, style = MaterialTheme.typography.bodySmall)
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showMetaForm = !showMetaForm }) {
                         Text(if (showMetaForm) "Hide manual metadata ▲" else "Manual metadata (optional) ▼")
@@ -114,7 +120,14 @@ fun UploadQueueScreen(vm: MainViewModel) {
         }
         item { Text("Queue (${items.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
         items(items, key = { it.id }) { item ->
-            QueueItemCard(item, onEdit = { editItem = item }, onDelete = { deleteConfirm = item })
+            QueueItemCard(item, onEdit = { editItem = item }, onDelete = { deleteConfirm = item }, onPreview = { previewItem = item })
+        }
+    }
+
+    previewItem?.let { p ->
+        val url = p.fileUrl
+        if (!url.isNullOrBlank()) {
+            WallpaperPreviewDialog(url = url, title = p.title ?: p.name ?: "", onDismiss = { previewItem = null })
         }
     }
 
@@ -160,19 +173,21 @@ fun UploadQueueScreen(vm: MainViewModel) {
 }
 
 @Composable
-private fun QueueItemCard(item: QueueItem, onEdit: () -> Unit, onDelete: () -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+private fun QueueItemCard(item: QueueItem, onEdit: () -> Unit, onDelete: () -> Unit, onPreview: () -> Unit) {
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
             if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = item.fileUrl, contentDescription = null,
-                    modifier = Modifier.size(52.dp).background(Color(0xFFEEF2F7), RoundedCornerShape(12.dp))
+                    modifier = Modifier.size(52.dp).background(Color(0xFF201A1C), RoundedCornerShape(12.dp)).clickable { onPreview() }
                 )
             } else {
+                val isPlaying = AudioPlayer.playingId == item.id
                 Icon(
-                    if (item.isAudio) Icons.Filled.MusicNote else Icons.Filled.Image,
-                    contentDescription = null, tint = if (item.isAudio) Violet else SkyBlue,
-                    modifier = Modifier.size(40.dp).padding(2.dp)
+                    if (item.isAudio) { if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow } else Icons.Filled.Image,
+                    contentDescription = null,
+                    tint = if (item.isAudio) { if (isPlaying) PrimaryPink else Violet } else SkyBlue,
+                    modifier = Modifier.size(40.dp).padding(2.dp).clickable(enabled = item.isAudio) { AudioPlayer.toggle(item.id, item.fileUrl) }
                 )
             }
             Spacer(Modifier.width(10.dp))

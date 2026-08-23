@@ -52,7 +52,7 @@ fun DistributeScreen(vm: MainViewModel) {
             )
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = { pickImages.launch("image/*") },
@@ -79,7 +79,7 @@ fun DistributeScreen(vm: MainViewModel) {
             Text("Recently distributed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         items(items.filter { it.distributedTo != null }.take(20)) { item ->
-            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
+            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(12.dp)) {
                     Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)
                     Text(
