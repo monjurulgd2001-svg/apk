@@ -90,7 +90,7 @@ private fun decodeToPcm(file: File): ByteArray {
     val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
 
     val pcmFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_RAW, sampleRate, channelCount)
-    pcmFormat.setInteger(MediaFormat.KEY_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+    pcmFormat.setInteger(MediaFormat.KEY_PCM_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
 
     val codec = MediaCodec.createDecoderByType(mime)
     codec.configure(format, null, null, 0)
