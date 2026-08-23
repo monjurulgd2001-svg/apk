@@ -205,21 +205,44 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         stopBulkGeneration()
         _bulkStatuses.value = prompts.map { BulkItemStatus(it, "Pending") }
         bulkJob = viewModelScope.launch {
+            if (!settings.hasGeminiKeys()) {
+                prompts.indices.forEach { updateBulk(it, "No Gemini key") }
+                return@launch
+            }
             prompts.forEachIndexed { i, prompt ->
                 updateBulk(i, "Composing")
                 try {
                     val bytes = generateRingtone(prompt, lengthSeconds) { }
-                    var err: String? = null
-                    addGeneratedToQueue(bytes, prompt, lengthSeconds.toDouble()) { err = it }
-                    updateBulk(i, if (err == null) "Done" else "Failed")
+                    val err = addGeneratedToQueueSync(bytes, prompt, lengthSeconds.toDouble())
+                    updateBulk(i, if (err == null) "Done" else "Failed: $err")
                 } catch (e: StableAuthRequiredException) {
-                    updateBulk(i, "Failed — Auth required")
-                    // Stop remaining prompts since auth is needed
+                    updateBulk(i, "Failed: Auth required")
                     return@launch
                 } catch (e: Exception) {
-                    updateBulk(i, "Failed")
+                    updateBulk(i, "Failed: ${e.message?.take(60) ?: "Unknown"}")
                 }
             }
+        }
+    }
+
+    /** Suspend version of addGeneratedToQueue — returns error message or null on success. */
+    private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double): String? {
+        return try {
+            val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
+            val meta = if (settings.hasGeminiKeys())
+                runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
+            else fallbackMeta(prompt)
+            val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
+                .replace(" ", "_").ifBlank { "ai_ringtone" } + ".mp3"
+            val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, "audio/mpeg")
+            FirebaseRepo.addQueueItem(
+                projectKey = _activeProject.value,
+                name = fileName, type = "audio/mpeg", size = audioBytes.size.toLong(),
+                isMp3 = true, fileUrl = fileUrl, meta = meta, duration = durationSec
+            )
+            null // success
+        } catch (e: Exception) {
+            e.message ?: "Upload failed"
         }
     }
 
