@@ -23,7 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled/info
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -167,7 +167,7 @@ fun StableAudioLoginScreen(
                             }
 
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.info, null, tint = MintGreen, modifier = Modifier.size(14.dp))
+                                Icon(Icons.Filled.Info, null, tint = MintGreen, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text(
                                     "Save these credentials for manual login at stableaudio.com",
@@ -322,9 +322,10 @@ fun StableAudioLoginScreen(
                                 ) // Remove WebView identifier
 
                                 // Enable cookies (needed for Auth0)
+                                val webViewInstance = this
                                 CookieManager.getInstance().apply {
                                     setAcceptCookie(true)
-                                    setAcceptThirdPartyCookies(this@apply, true)
+                                    setAcceptThirdPartyCookies(webViewInstance, true)
                                 }
 
                                 webViewClient = object : WebViewClient() {
