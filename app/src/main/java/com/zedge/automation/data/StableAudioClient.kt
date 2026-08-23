@@ -79,7 +79,7 @@ class StableAudioClient(private val settings: SettingsStore) {
         http.newCall(req).execute().use { r ->
             val text = r.body?.string() ?: ""
             when (r.code) {
-                200 -> JSONObject(text).getJSONArray("data").getJSONObject(0)
+                200, 201 -> JSONObject(text).getJSONArray("data").getJSONObject(0)
                     .getJSONObject("links").getString("result")
                 401, 403 -> throw StableAuthRequiredException(
                     "Token expired or invalid (HTTP ${r.code}). Please create a new account."

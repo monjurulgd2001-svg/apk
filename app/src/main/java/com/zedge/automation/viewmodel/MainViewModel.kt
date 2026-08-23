@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import com.zedge.automation.ui.screens.processAudio
 
 data class UploadProgress(val current: Int = 0, val total: Int = 0, val message: String = "", val error: Boolean = false)
 
@@ -201,7 +202,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         description = prompt.split(Regex("\\s+")).take(5).joinToString(" ")
     )
 
-    fun startBulkGeneration(prompts: List<String>, lengthSeconds: Int) {
+    fun startBulkGeneration(
+        prompts: List<String>,
+        lengthSeconds: Int,
+        gainPercent: Float = 200f,
+        silenceThreshold: Float = 0.02f,
+        padMs: Int = 100,
+        autoTrimBoost: Boolean = true
+    ) {
         stopBulkGeneration()
         _bulkStatuses.value = prompts.map { BulkItemStatus(it, "Pending") }
         bulkJob = viewModelScope.launch {
@@ -212,7 +220,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             prompts.forEachIndexed { i, prompt ->
                 updateBulk(i, "Composing")
                 try {
-                    val bytes = generateRingtone(prompt, lengthSeconds) { }
+                    var bytes = generateRingtone(prompt, lengthSeconds) { }
+                    if (autoTrimBoost) {
+                        updateBulk(i, "Processing audio...")
+                        bytes = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs)
+                    }
                     val err = addGeneratedToQueueSync(bytes, prompt, lengthSeconds.toDouble())
                     updateBulk(i, if (err == null) "Done" else "Failed: $err")
                 } catch (e: StableAuthRequiredException) {
