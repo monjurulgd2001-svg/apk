@@ -75,7 +75,7 @@ class SettingsStore(context: Context) {
         }
 
     /** All keys: user keys + hidden fallback keys */
-    var mistralApiKeys: List<String>
+    val mistralApiKeys: List<String>
         get() {
             val all = mutableListOf<String>()
             all.addAll(userMistralKeys)
