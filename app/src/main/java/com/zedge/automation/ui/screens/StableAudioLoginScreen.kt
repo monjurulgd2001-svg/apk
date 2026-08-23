@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled/info
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,15 +56,11 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.zedge.automation.data.StableAudioAuth
 import com.zedge.automation.ui.theme.HeaderDark
 import com.zedge.automation.ui.theme.MintGreen
-import com.zedge.automation.ui.theme.PrimaryPink
 import com.zedge.automation.ui.theme.SoftRed
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @SuppressLint("SetJavaScriptEnabled")

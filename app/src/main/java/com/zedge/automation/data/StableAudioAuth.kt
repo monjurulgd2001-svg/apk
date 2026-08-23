@@ -1,14 +1,10 @@
 package com.zedge.automation.data
 
-import android.annotation.SuppressLint
-import android.content.Context
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import java.util.Locale
 import kotlin.random.Random
 
 /**
@@ -27,8 +23,8 @@ import kotlin.random.Random
 class StableAudioAuth(private val settings: SettingsStore) {
 
     companion object {
-        private const val STABLE_AUDIO_URL = "https://stableaudio.com"
-        private const val AUTH0_LOGOUT_URL = "https://login.stableaudio.com/v2/logout"
+        const val STABLE_AUDIO_URL = "https://stableaudio.com"
+        const val AUTH0_LOGOUT_URL = "https://login.stableaudio.com/v2/logout"
 
         /** How long to wait for token extraction (ms) */
         private const val TOKEN_WAIT_TIMEOUT = 45_000L
