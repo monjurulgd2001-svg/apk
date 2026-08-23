@@ -62,7 +62,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         settings.activeProject = projectKey
         queueJob?.cancel(); stateJob?.cancel()
         queueJob = viewModelScope.launch {
-            FirebaseRepo.queueFlow(projectKey).collect { _queueItems.value = it }
+            runCatching { FirebaseRepo.queueFlow(projectKey).collect { _queueItems.value = it } }
+                .onFailure { setProgress("Database connection failed: ${it.message}", error = true) }
         }
         stateJob = viewModelScope.launch {
             runCatching { FirebaseRepo.uploadStateFlow(projectKey).collect { _uploadState.value = it } }

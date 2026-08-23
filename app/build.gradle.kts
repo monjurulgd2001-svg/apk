@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.zedge.automation"
-        minSdk = 24
+        minSdk = 21
         targetSdk = 35
         versionCode = 1
         versionName = "3.0"
@@ -28,6 +28,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    lint { abortOnError = false }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
@@ -48,7 +49,6 @@ dependencies {
 
     // Networking (R2 gateway worker, Gemini, Stable Audio)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.json:json:20240303")
 
     // Image loading for wallpaper thumbnails
     implementation("io.coil-kt:coil-compose:2.6.0")

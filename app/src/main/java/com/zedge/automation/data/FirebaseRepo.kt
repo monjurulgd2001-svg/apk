@@ -20,7 +20,7 @@ import kotlinx.coroutines.tasks.await
 object FirebaseRepo {
 
     fun db(projectKey: String): FirebaseDatabase =
-        FirebaseDatabase.getInstance(FirebaseApp.getInstance(projectKey))
+        FirebaseDatabase.getInstance(FirebaseInit.app(projectKey))
 
     private fun queueRef(projectKey: String): DatabaseReference =
         db(projectKey).getReference(AppConfig.QUEUE_PATH)
