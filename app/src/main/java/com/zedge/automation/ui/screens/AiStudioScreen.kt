@@ -285,7 +285,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                                 s.status == "Composing" -> PastelOrange
                                 else -> TextMuted
                             },
-                            Modifier.size(18.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                     Spacer(Modifier.width(12.dp))
@@ -340,7 +340,7 @@ private fun StatusPill(label: String, count: Int, color: Color, icon: androidx.c
             Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, contentDescription = null, tint = color, Modifier.size(16.dp))
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
             Text("$count", fontWeight = FontWeight.Bold, color = color, style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.width(4.dp))
