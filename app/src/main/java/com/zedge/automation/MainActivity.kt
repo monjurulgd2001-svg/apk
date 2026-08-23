@@ -58,19 +58,19 @@ import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.ZedgeTheme
 import com.zedge.automation.viewmodel.MainViewModel
 
-// Same tabs as the web dashboard's top nav, now as a mobile bottom bar
-sealed class Tab(val route: String, val label: String, val icon: ImageVector) {
-    data object Home : Tab("home", "Home", Icons.Filled.Home)
-    data object Upload : Tab("upload", "Queue", Icons.Filled.CloudUpload)
-    data object AiStudio : Tab("aistudio", "AI Studio", Icons.Filled.AutoFixHigh)
-    data object Schedule : Tab("schedule", "Schedule", Icons.Filled.CalendarMonth)
-    data object Distribute : Tab("distribute", "Distribute", Icons.Filled.Share)
-    data object Settings : Tab("settings", "Settings", Icons.Filled.Settings)
+// Same tabs as the web dashboard's top nav, now as a mobile bottom bar.
+// NOTE: plain data class + function (NOT sealed class objects) — sealed-class
+// companion lists can contain nulls due to class-init ordering and crash at launch.
+data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-    companion object {
-        val all = listOf(Home, Upload, AiStudio, Schedule, Distribute, Settings)
-    }
-}
+private fun allTabs(): List<Tab> = listOf(
+    Tab("home", "Home", Icons.Filled.Home),
+    Tab("upload", "Queue", Icons.Filled.CloudUpload),
+    Tab("aistudio", "AI Studio", Icons.Filled.AutoFixHigh),
+    Tab("schedule", "Schedule", Icons.Filled.CalendarMonth),
+    Tab("distribute", "Distribute", Icons.Filled.Share),
+    Tab("settings", "Settings", Icons.Filled.Settings)
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,7 +86,8 @@ class MainActivity : ComponentActivity() {
 fun ZedgeApp(vm: MainViewModel = viewModel()) {
     val navController = rememberNavController()
     val backStack by navController.currentBackStackEntryAsState()
-    val currentRoute = backStack?.destination?.route ?: Tab.Home.route
+    val tabs = remember { allTabs() }
+    val currentRoute = backStack?.destination?.route ?: "home"
     val activeProject by vm.activeProject.collectAsState()
 
     Scaffold(
@@ -124,7 +125,7 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
         },
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
-                Tab.all.forEach { tab ->
+                tabs.forEach { tab ->
                     NavigationBarItem(
                         selected = currentRoute == tab.route,
                         onClick = {
@@ -149,13 +150,13 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
         }
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            NavHost(navController, startDestination = Tab.Home.route) {
-                composable(Tab.Home.route) { HomeScreen(vm) }
-                composable(Tab.Upload.route) { UploadQueueScreen(vm) }
-                composable(Tab.AiStudio.route) { AiStudioScreen(vm) }
-                composable(Tab.Schedule.route) { ScheduleScreen(vm) }
-                composable(Tab.Distribute.route) { DistributeScreen(vm) }
-                composable(Tab.Settings.route) { SettingsScreen(vm) }
+            NavHost(navController, startDestination = "home") {
+                composable("home") { HomeScreen(vm) }
+                composable("upload") { UploadQueueScreen(vm) }
+                composable("aistudio") { AiStudioScreen(vm) }
+                composable("schedule") { ScheduleScreen(vm) }
+                composable("distribute") { DistributeScreen(vm) }
+                composable("settings") { SettingsScreen(vm) }
             }
         }
     }
