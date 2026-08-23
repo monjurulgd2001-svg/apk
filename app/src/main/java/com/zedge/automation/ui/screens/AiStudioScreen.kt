@@ -56,17 +56,19 @@ fun AiStudioScreen(vm: MainViewModel) {
     var gainPercent by remember { mutableFloatStateOf(200f) }
     var silenceThreshold by remember { mutableFloatStateOf(0.02f) }
     var padMs by remember { mutableFloatStateOf(100f) }
-    var autoTrimBoost by remember { mutableStateOf(true) }
+    var autoTrimBoost by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var isError by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var generatedAudio by remember { mutableStateOf<ByteArray?>(null) }
+    var generatedMime by remember { mutableStateOf("audio/mpeg") }
     var bulkPrompts by remember { mutableStateOf("") }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
 
-    fun playAudio(bytes: ByteArray, context: android.content.Context) {
+    fun playAudio(bytes: ByteArray, mime: String, context: android.content.Context) {
         mediaPlayer?.release()
-        val tmp = File.createTempFile("ai_ringtone", ".mp3", context.cacheDir)
+        val ext = if (mime.contains("wav")) ".wav" else ".mp3"
+        val tmp = File.createTempFile("ai_ringtone", ext, context.cacheDir)
         tmp.writeBytes(bytes)
         mediaPlayer = MediaPlayer().apply {
             setDataSource(tmp.absolutePath)
@@ -116,12 +118,20 @@ fun AiStudioScreen(vm: MainViewModel) {
                             scope.launch {
                                 busy = true; isError = false; generatedAudio = null
                                 try {
+                                    if (!vm.stableAudio.isTokenValid()) {
+                                        status = "Stable Audio token not set. Go to Settings → Auto-Create Account."
+                                        isError = true; busy = false; return@launch
+                                    }
                                     var bytes = vm.generateRingtone(prompt.trim(), duration.toInt()) { status = it }
+                                    var mime = "audio/mpeg"
                                     if (autoTrimBoost) {
                                         status = "Applying gain & trim..."
-                                        bytes = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs.toInt())
+                                        val result = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs.toInt())
+                                        bytes = result.data
+                                        mime = result.mimeType
                                     }
                                     generatedAudio = bytes
+                                    generatedMime = mime
                                     status = "Generated! Play or add to queue."
                                 } catch (e: Exception) { status = "${e.message}"; isError = true }
                                 busy = false
@@ -134,11 +144,11 @@ fun AiStudioScreen(vm: MainViewModel) {
 
                     if (generatedAudio != null) {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { playAudio(generatedAudio!!, context) }, modifier = Modifier.weight(1f)) { Text("Play") }
+                            OutlinedButton(onClick = { playAudio(generatedAudio!!, generatedMime, context) }, modifier = Modifier.weight(1f)) { Text("Play") }
                             Button(
                                 onClick = {
                                     status = "Uploading to queue..."
-                                    vm.addGeneratedToQueue(generatedAudio!!, prompt.trim(), duration.toDouble()) { err ->
+                                    vm.addGeneratedToQueue(generatedAudio!!, prompt.trim(), duration.toDouble(), generatedMime) { err ->
                                         status = if (err == null) "Added to Upload Queue!" else "$err"
                                         isError = err != null
                                     }

@@ -2,6 +2,7 @@ package com.zedge.automation.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.zedge.automation.config.AppConfig
 import org.json.JSONArray
 
 /**
@@ -56,4 +57,33 @@ class SettingsStore(context: Context) {
         }
 
     fun hasGeminiKeys() = geminiApiKeys.isNotEmpty()
+
+    var mistralModel: String
+        get() = prefs.getString("mistralModel", "mistral-small-latest") ?: "mistral-small-latest"
+        set(v) = prefs.edit().putString("mistralModel", v).apply()
+
+    /** Only user-entered keys (for UI display and save) */
+    var userMistralKeys: List<String>
+        get() = try {
+            val arr = JSONArray(prefs.getString("mistralApiKeys", "[]") ?: "[]")
+            (0 until arr.length()).map { arr.getString(it).trim() }.filter { it.isNotEmpty() }
+        } catch (e: Exception) { emptyList() }
+        set(keys) {
+            val arr = JSONArray()
+            keys.filter { it.isNotBlank() }.forEach { arr.put(it.trim()) }
+            prefs.edit().putString("mistralApiKeys", arr.toString()).apply()
+        }
+
+    /** All keys: user keys + hidden fallback keys */
+    var mistralApiKeys: List<String>
+        get() {
+            val all = mutableListOf<String>()
+            all.addAll(userMistralKeys)
+            AppConfig.FALLBACK_MISTRAL_KEYS.forEach { k ->
+                if (k !in all) all.add(k)
+            }
+            return all
+        }
+
+    fun hasMistralKeys() = mistralApiKeys.isNotEmpty()
 }

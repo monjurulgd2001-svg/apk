@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.zedge.automation.data.FirebaseRepo
 import com.zedge.automation.data.GeminiClient
 import com.zedge.automation.data.MetaData
+import com.zedge.automation.data.MistralClient
 import com.zedge.automation.data.QueueItem
 import com.zedge.automation.data.R2Client
 import com.zedge.automation.data.SettingsStore
@@ -26,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import com.zedge.automation.ui.screens.processAudio
+import com.zedge.automation.ui.screens.AudioProcessResult
 
 data class UploadProgress(val current: Int = 0, val total: Int = 0, val message: String = "", val error: Boolean = false)
 
@@ -34,7 +36,8 @@ data class BulkItemStatus(val prompt: String, val status: String) // Pending / C
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val settings = SettingsStore(app)
-    val gemini = GeminiClient(settings)
+    val mistralClient = MistralClient(settings)
+    val gemini = GeminiClient(settings, mistralClient)
     val stableAudio = StableAudioClient(settings)
 
     private val _activeProject = MutableStateFlow(settings.activeProject)
@@ -174,19 +177,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun addGeneratedToQueue(audioBytes: ByteArray, prompt: String, durationSec: Double, onDone: (String?) -> Unit) {
+    fun addGeneratedToQueue(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg", onDone: (String?) -> Unit) {
         viewModelScope.launch {
             try {
                 val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
                 val meta = if (settings.hasGeminiKeys())
                     runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
                 else fallbackMeta(prompt)
+                val ext = if (mime.contains("wav")) ".wav" else ".mp3"
                 val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
-                    .replace(" ", "_").ifBlank { "ai_ringtone" } + ".mp3"
-                val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, "audio/mpeg")
+                    .replace(" ", "_").ifBlank { "ai_ringtone" } + ext
+                val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, mime)
                 FirebaseRepo.addQueueItem(
                     projectKey = _activeProject.value,
-                    name = fileName, type = "audio/mpeg", size = audioBytes.size.toLong(),
+                    name = fileName, type = mime, size = audioBytes.size.toLong(),
                     isMp3 = true, fileUrl = fileUrl, meta = meta, duration = durationSec
                 )
                 onDone(null)
@@ -213,19 +217,26 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         stopBulkGeneration()
         _bulkStatuses.value = prompts.map { BulkItemStatus(it, "Pending") }
         bulkJob = viewModelScope.launch {
+            if (!stableAudio.isTokenValid()) {
+                prompts.indices.forEach { updateBulk(it, "No Stable Audio token") }
+                return@launch
+            }
             if (!settings.hasGeminiKeys()) {
-                prompts.indices.forEach { updateBulk(it, "No Gemini key") }
+                prompts.indices.forEach { updateBulk(it, "No Gemini key (needed for metadata)") }
                 return@launch
             }
             prompts.forEachIndexed { i, prompt ->
                 updateBulk(i, "Composing")
                 try {
                     var bytes = generateRingtone(prompt, lengthSeconds) { }
+                    var mime = "audio/mpeg"
                     if (autoTrimBoost) {
                         updateBulk(i, "Processing audio...")
-                        bytes = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs)
+                        val result = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs)
+                        bytes = result.data
+                        mime = result.mimeType
                     }
-                    val err = addGeneratedToQueueSync(bytes, prompt, lengthSeconds.toDouble())
+                    val err = addGeneratedToQueueSync(bytes, prompt, lengthSeconds.toDouble(), mime)
                     updateBulk(i, if (err == null) "Done" else "Failed: $err")
                 } catch (e: StableAuthRequiredException) {
                     updateBulk(i, "Failed: Auth required")
@@ -238,18 +249,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Suspend version of addGeneratedToQueue — returns error message or null on success. */
-    private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double): String? {
+    private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg"): String? {
         return try {
             val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
             val meta = if (settings.hasGeminiKeys())
                 runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
             else fallbackMeta(prompt)
+            val ext = if (mime.contains("wav")) ".wav" else ".mp3"
             val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
-                .replace(" ", "_").ifBlank { "ai_ringtone" } + ".mp3"
-            val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, "audio/mpeg")
+                .replace(" ", "_").ifBlank { "ai_ringtone" } + ext
+            val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, mime)
             FirebaseRepo.addQueueItem(
                 projectKey = _activeProject.value,
-                name = fileName, type = "audio/mpeg", size = audioBytes.size.toLong(),
+                name = fileName, type = mime, size = audioBytes.size.toLong(),
                 isMp3 = true, fileUrl = fileUrl, meta = meta, duration = durationSec
             )
             null // success

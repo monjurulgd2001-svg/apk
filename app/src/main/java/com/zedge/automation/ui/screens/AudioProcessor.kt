@@ -10,39 +10,61 @@ import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.min
 
+data class AudioProcessResult(val data: ByteArray, val mimeType: String)
 
-/**
- * Decode MP3 bytes to raw PCM, apply gain, trim leading/trailing silence, add pad.
- * Re-encode to MP3 (or return raw if encoder unavailable).
- */
-fun processAudio(mp3Bytes: ByteArray, gain: Float, silenceThreshold: Float, padMs: Int): ByteArray {
+fun processAudio(mp3Bytes: ByteArray, gain: Float, silenceThreshold: Float, padMs: Int): AudioProcessResult {
     val tempIn = File.createTempFile("process_in", ".mp3")
     tempIn.writeBytes(mp3Bytes)
     try {
         val pcm = decodeToPcm(tempIn)
-        if (pcm.isEmpty()) return mp3Bytes
+        if (pcm.isEmpty()) return AudioProcessResult(mp3Bytes, "audio/mpeg")
 
         val sampleRate = 44100
         val channels = 2
         val bytesPerSample = 2 * channels
 
-        // Apply gain
         val gained = applyGain(pcm, gain)
-
-        // Trim silence
         val trimmed = trimSilence(gained, silenceThreshold, sampleRate, bytesPerSample)
 
-        // Add pad
         val padBytes = (padMs * sampleRate * bytesPerSample / 1000).toInt()
         val padded = ByteArray(padBytes + trimmed.size + padBytes)
         System.arraycopy(trimmed, 0, padded, padBytes, trimmed.size)
 
-        return padded
+        val wavBytes = encodeToWav(padded, sampleRate, channels)
+        return AudioProcessResult(wavBytes, "audio/wav")
     } catch (e: Exception) {
-        return mp3Bytes
+        return AudioProcessResult(mp3Bytes, "audio/mpeg")
     } finally {
         tempIn.delete()
     }
+}
+
+private fun encodeToWav(pcmData: ByteArray, sampleRate: Int, channels: Int): ByteArray {
+    val bitsPerSample = 16
+    val byteRate = sampleRate * channels * bitsPerSample / 8
+    val blockAlign = channels * bitsPerSample / 8
+    val dataSize = pcmData.size
+    val totalSize = 36 + dataSize
+
+    val header = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
+    header.put("RIFF".toByteArray())
+    header.putInt(totalSize)
+    header.put("WAVE".toByteArray())
+    header.put("fmt ".toByteArray())
+    header.putInt(16)
+    header.putShort(1)
+    header.putShort(channels.toShort())
+    header.putInt(sampleRate)
+    header.putInt(byteRate)
+    header.putShort(blockAlign.toShort())
+    header.putShort(bitsPerSample.toShort())
+    header.put("data".toByteArray())
+    header.putInt(dataSize)
+
+    val output = ByteArrayOutputStream(44 + dataSize)
+    output.write(header.array())
+    output.write(pcmData)
+    return output.toByteArray()
 }
 
 private fun decodeToPcm(file: File): ByteArray {
@@ -63,6 +85,12 @@ private fun decodeToPcm(file: File): ByteArray {
     extractor.selectTrack(trackIndex)
 
     val mime = format.getString(MediaFormat.KEY_MIME) ?: "audio/mp4a-latm"
+    val sampleRate = format.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+    val channelCount = format.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+
+    val pcmFormat = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_RAW, sampleRate, channelCount)
+    pcmFormat.setInteger(MediaFormat.KEY_ENCODING, MediaFormat.ENCODING_PCM_16BIT)
+
     val codec = MediaCodec.createDecoderByType(mime)
     codec.configure(format, null, null, 0)
     codec.start()
@@ -129,7 +157,6 @@ private fun trimSilence(pcm: ByteArray, threshold: Float, sampleRate: Int, bytes
     val frameSize = bytesPerSample / 2
     val thresholdShort = (threshold * 32767).toInt().toShort()
 
-    // Find start (first non-silent frame)
     var startIdx = 0
     for (i in 0 until samples.size - frameSize step frameSize) {
         var maxAmp = 0
@@ -139,7 +166,6 @@ private fun trimSilence(pcm: ByteArray, threshold: Float, sampleRate: Int, bytes
         if (maxAmp > thresholdShort) { startIdx = i; break }
     }
 
-    // Find end (last non-silent frame)
     var endIdx = samples.size
     for (i in samples.size - frameSize downTo 0 step frameSize) {
         var maxAmp = 0

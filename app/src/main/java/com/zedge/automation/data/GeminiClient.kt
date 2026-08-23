@@ -19,8 +19,9 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Gemini auto-metadata — identical API contract, key rotation, retry
  * behaviour and prompts as the web dashboard (main.js).
+ * Falls back to Mistral when Gemini fails.
  */
-class GeminiClient(private val settings: SettingsStore) {
+class GeminiClient(private val settings: SettingsStore, private val mistral: MistralClient? = null) {
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -77,16 +78,30 @@ class GeminiClient(private val settings: SettingsStore) {
             throw lastErr ?: Exception("Gemini failed")
         }
 
-    suspend fun gemini(text: String): String =
-        callGemini(JSONArray().put(JSONObject().put("text", text)))
+    suspend fun gemini(text: String): String {
+        return try {
+            callGemini(JSONArray().put(JSONObject().put("text", text)))
+        } catch (e: Exception) {
+            if (mistral != null && settings.hasMistralKeys()) {
+                try { mistral.mistral(text) } catch (e2: Exception) { throw e }
+            } else throw e
+        }
+    }
 
-    suspend fun geminiWithImage(base64Jpeg: String, prompt: String): String =
-        callGemini(
-            JSONArray()
-                .put(JSONObject().put("inlineData",
-                    JSONObject().put("mimeType", "image/jpeg").put("data", base64Jpeg)))
-                .put(JSONObject().put("text", prompt))
-        )
+    suspend fun geminiWithImage(base64Jpeg: String, prompt: String): String {
+        return try {
+            callGemini(
+                JSONArray()
+                    .put(JSONObject().put("inlineData",
+                        JSONObject().put("mimeType", "image/jpeg").put("data", base64Jpeg)))
+                    .put(JSONObject().put("text", prompt))
+            )
+        } catch (e: Exception) {
+            if (mistral != null && settings.hasMistralKeys()) {
+                try { mistral.mistralWithImage(base64Jpeg, prompt) } catch (e2: Exception) { throw e }
+            } else throw e
+        }
+    }
 
     private fun cleanTitle(raw: String, existingTitles: List<String>): String {
         var t = raw.trim('"', '\'').replace(Regex("[:\\-]"), "")

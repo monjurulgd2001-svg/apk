@@ -62,7 +62,7 @@ class StableAudioClient(private val settings: SettingsStore) {
     /** Starts a generation; returns the result polling URL. */
     suspend fun generate(prompt: String, lengthSeconds: Int): String = withContext(Dispatchers.IO) {
         val token = settings.stableAudioToken
-        if (token.isBlank()) throw StableAuthRequiredException("Stable Audio token not set. Please login first.")
+        if (token.isBlank()) throw StableAuthRequiredException("Stable Audio token not set. Go to Settings → Auto-Create Account & Sync Token.")
         val seed = Random.nextInt(-32768, 32768)
         val body = JSONObject().put("data", JSONObject()
             .put("type", "generations")
@@ -82,10 +82,10 @@ class StableAudioClient(private val settings: SettingsStore) {
                 200, 201 -> JSONObject(text).getJSONArray("data").getJSONObject(0)
                     .getJSONObject("links").getString("result")
                 401, 403 -> throw StableAuthRequiredException(
-                    "Token expired or invalid (HTTP ${r.code}). Please create a new account."
+                    "Token expired or invalid (HTTP ${r.code}). Go to Settings → Auto-Create Account & Sync Token to get a fresh token."
                 )
                 429 -> throw StableAuthRequiredException(
-                    "API rate limit reached (HTTP 429). Auto-recovery: creating new account..."
+                    "API rate limit reached (HTTP 429). Go to Settings → Auto-Create Account & Sync Token to get a new account."
                 )
                 else -> throw Exception("Stable Audio (${r.code}): ${text.take(200)}")
             }
