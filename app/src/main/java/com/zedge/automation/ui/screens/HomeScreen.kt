@@ -223,8 +223,17 @@ private fun QueueCard(item: QueueItem, onPreview: () -> Unit = {}) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     (item.tags ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3).forEach { tag ->
-                        Box(Modifier.background(ChipBg, RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                            Text(tag, color = ChipText, style = MaterialTheme.typography.labelSmall)
+                        Box(
+                            Modifier.background(ChipBg, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                tag,
+                                color = ChipText,
+                                style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1
+                            )
                         }
                     }
                 }

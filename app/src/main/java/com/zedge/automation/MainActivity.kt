@@ -76,9 +76,9 @@ data class Tab(val route: String, val label: String, val icon: ImageVector)
 private fun allTabs(): List<Tab> = listOf(
     Tab("home", "Home", Icons.Filled.Home),
     Tab("upload", "Queue", Icons.Filled.CloudUpload),
-    Tab("aistudio", "AI Studio", Icons.Filled.AutoFixHigh),
+    Tab("aistudio", "Studio", Icons.Filled.AutoFixHigh),
     Tab("schedule", "Calendar", Icons.Filled.CalendarMonth),
-    Tab("distribute", "Distribute", Icons.Filled.Share),
+    Tab("distribute", "Share", Icons.Filled.Share),
     Tab("settings", "Settings", Icons.Filled.Settings)
 )
 
