@@ -35,6 +35,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +58,7 @@ import com.zedge.automation.ui.screens.DistributeScreen
 import com.zedge.automation.ui.screens.HomeScreen
 import com.zedge.automation.ui.screens.ScheduleScreen
 import com.zedge.automation.ui.screens.SettingsScreen
+import com.zedge.automation.ui.screens.StableAudioLoginScreen
 import com.zedge.automation.ui.screens.UploadQueueScreen
 import com.zedge.automation.ui.theme.AccentGradient
 import com.zedge.automation.ui.theme.HeaderDark
@@ -96,6 +98,15 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
     val tabs = remember { allTabs() }
     val currentRoute = backStack?.destination?.route ?: "home"
     val activeProject by vm.activeProject.collectAsState()
+    val navigationEvent by vm.navigationEvent.collectAsState()
+
+    // Handle navigation events (e.g., auto-recovery from API limit)
+    LaunchedEffect(navigationEvent) {
+        navigationEvent?.let { route ->
+            navController.navigate(route) { launchSingleTop = true }
+            vm.clearNavigationEvent()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -196,7 +207,14 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
                 composable("aistudio") { AiStudioScreen(vm) }
                 composable("schedule") { ScheduleScreen(vm) }
                 composable("distribute") { DistributeScreen(vm) }
-                composable("settings") { SettingsScreen(vm) }
+                composable("settings") {
+                    SettingsScreen(vm, onStableAudioLogin = {
+                        navController.navigate("stable-audio-login")
+                    })
+                }
+                composable("stable-audio-login") {
+                    StableAudioLoginScreen(vm, onBack = { navController.popBackStack() })
+                }
             }
         }
     }

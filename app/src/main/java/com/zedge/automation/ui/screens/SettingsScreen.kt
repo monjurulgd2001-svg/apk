@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,7 +33,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PrimaryPink
+import com.zedge.automation.ui.theme.SoftRed
 import com.zedge.automation.ui.theme.TextMuted
+import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
 
 /**
@@ -41,7 +44,7 @@ import com.zedge.automation.viewmodel.MainViewModel
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(vm: MainViewModel) {
+fun SettingsScreen(vm: MainViewModel, onStableAudioLogin: () -> Unit = {}) {
     val settings = vm.settings
     var keysText by remember { mutableStateOf(settings.geminiApiKeys.joinToString("\n")) }
     var model by remember { mutableStateOf(settings.geminiModel) }
@@ -99,11 +102,56 @@ fun SettingsScreen(vm: MainViewModel) {
                         "Bearer token for AI music generation — get it from stableaudio.com. Stored only on this device.",
                         style = MaterialTheme.typography.bodySmall, color = TextMuted
                     )
-                    OutlinedTextField(
-                        token, { token = it },
-                        label = { Text("Stable Audio Token") },
+
+                    // Account status
+                    if (settings.hasStableAudioAccount()) {
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2E1A))
+                        ) {
+                            Row(
+                                Modifier.padding(10.dp).fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text("Logged in", color = MintGreen, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelMedium)
+                                    Text(settings.stableAccountEmail, color = TextMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                                }
+                                AssistChip(onClick = {}, label = { Text("Active", color = MintGreen) })
+                            }
+                        }
+                    }
+
+                    // Auto-create account button
+                    Button(
+                        onClick = onStableAudioLogin,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Violet)
+                    ) {
+                        Text(
+                            if (settings.hasStableAudioAccount()) "Manage Stable Audio Account" else "Auto-Create Account & Sync Token",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    // Manual token input (collapsed by default)
+                    var showManualInput by remember { mutableStateOf(false) }
+                    OutlinedButton(
+                        onClick = { showManualInput = !showManualInput },
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        Text(if (showManualInput) "Hide manual input ▲" else "Manual token input ▼", style = MaterialTheme.typography.bodySmall)
+                    }
+
+                    if (showManualInput) {
+                        OutlinedTextField(
+                            token, { token = it },
+                            label = { Text("Stable Audio Token") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

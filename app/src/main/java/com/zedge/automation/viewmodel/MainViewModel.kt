@@ -16,6 +16,7 @@ import com.zedge.automation.data.QueueItem
 import com.zedge.automation.data.R2Client
 import com.zedge.automation.data.SettingsStore
 import com.zedge.automation.data.StableAudioClient
+import com.zedge.automation.data.StableAuthRequiredException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +50,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _bulkStatuses = MutableStateFlow<List<BulkItemStatus>>(emptyList())
     val bulkStatuses: StateFlow<List<BulkItemStatus>> = _bulkStatuses.asStateFlow()
+
+    // Navigation event: when Stable Audio auth is required, emit "stable-audio-login"
+    private val _navigationEvent = MutableStateFlow<String?>(null)
+    val navigationEvent: StateFlow<String?> = _navigationEvent.asStateFlow()
+
+    fun clearNavigationEvent() { _navigationEvent.value = null }
 
     private var queueJob: Job? = null
     private var stateJob: Job? = null
@@ -157,8 +164,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun generateRingtone(prompt: String, lengthSeconds: Int, onStatus: (String) -> Unit): ByteArray {
         onStatus("Composing with Stable Audio...")
-        val resultUrl = stableAudio.generate(prompt, lengthSeconds)
-        return stableAudio.poll(resultUrl) { i, total -> onStatus("Composing... (${i + 1}/$total)") }
+        return try {
+            val resultUrl = stableAudio.generate(prompt, lengthSeconds)
+            stableAudio.poll(resultUrl) { i, total -> onStatus("Composing... (${i + 1}/$total)") }
+        } catch (e: StableAuthRequiredException) {
+            _navigationEvent.value = "stable-audio-login"
+            throw e
+        }
     }
 
     fun addGeneratedToQueue(audioBytes: ByteArray, prompt: String, durationSec: Double, onDone: (String?) -> Unit) {
@@ -200,6 +212,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     var err: String? = null
                     addGeneratedToQueue(bytes, prompt, lengthSeconds.toDouble()) { err = it }
                     updateBulk(i, if (err == null) "Done" else "Failed")
+                } catch (e: StableAuthRequiredException) {
+                    updateBulk(i, "Failed — Auth required")
+                    // Stop remaining prompts since auth is needed
+                    return@launch
                 } catch (e: Exception) {
                     updateBulk(i, "Failed")
                 }

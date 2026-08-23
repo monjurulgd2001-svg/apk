@@ -25,6 +25,24 @@ class SettingsStore(context: Context) {
         get() = prefs.getString("stableAudioToken", "") ?: ""
         set(v) = prefs.edit().putString("stableAudioToken", v).apply()
 
+    var stableAccountEmail: String
+        get() = prefs.getString("stableAccountEmail", "") ?: ""
+        set(v) = prefs.edit().putString("stableAccountEmail", v).apply()
+
+    var stableAccountPassword: String
+        get() = prefs.getString("stableAccountPassword", "") ?: ""
+        set(v) = prefs.edit().putString("stableAccountPassword", v).apply()
+
+    fun hasStableAudioAccount() = stableAccountEmail.isNotEmpty() && stableAudioToken.isNotEmpty()
+
+    fun clearStableAudioAccount() {
+        prefs.edit()
+            .remove("stableAudioToken")
+            .remove("stableAccountEmail")
+            .remove("stableAccountPassword")
+            .apply()
+    }
+
     // Stored as a JSON array string, same format as the web app
     var geminiApiKeys: List<String>
         get() = try {
