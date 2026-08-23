@@ -263,31 +263,29 @@ fun AiStudioScreen(vm: MainViewModel) {
                         color = TextMuted
                     )
 
-                    // Settings grid — 2×2 layout (wider fields, easier to tap)
+                    // Settings grid — Duration alone (full width) + 3 compact fields in one row
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        // Duration — full width, prominent
+                        SettingInput("Duration (s)", "${duration.toInt()}", Modifier.fillMaxWidth()) {
+                            it.toFloatOrNull()?.let { v -> duration = v.coerceIn(5f, 180f) }
+                        }
+                        // Gain, Silence, Pad — compact 3-column row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            SettingInput("Duration (s)", "${duration.toInt()}", Modifier.weight(1f)) {
-                                it.toFloatOrNull()?.let { v -> duration = v.coerceIn(5f, 180f) }
-                            }
-                            SettingInput("Gain %", "${gainPercent.toInt()}", Modifier.weight(1f)) {
+                            CompactSettingInput("Gain %", "${gainPercent.toInt()}", Modifier.weight(1f)) {
                                 it.toFloatOrNull()?.let { v -> gainPercent = v.coerceIn(10f, 500f) }
                             }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            SettingInput("Silence Threshold", silenceThreshold.toString(), Modifier.weight(1f)) {
+                            CompactSettingInput("Silence", silenceThreshold.toString(), Modifier.weight(1f)) {
                                 it.toFloatOrNull()?.let { v -> silenceThreshold = v.coerceIn(0.001f, 0.5f) }
                             }
-                            SettingInput("Pad (ms)", "${padMs.toInt()}", Modifier.weight(1f)) {
+                            CompactSettingInput("Pad ms", "${padMs.toInt()}", Modifier.weight(1f)) {
                                 it.toFloatOrNull()?.let { v -> padMs = v.coerceIn(0f, 1000f) }
                             }
                         }
                     }
+
 
                     // Auto trim toggle
                     Row(
@@ -480,6 +478,32 @@ private fun SettingInput(label: String, value: String, modifier: Modifier, onVal
         )
     }
 }
+
+@Composable
+private fun CompactSettingInput(label: String, value: String, modifier: Modifier, onValueChange: (String) -> Unit) {
+    Column(modifier) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = TextMuted,
+            fontWeight = FontWeight.Medium,
+            fontSize = androidx.compose.ui.unit.TextUnit(9f, androidx.compose.ui.unit.TextUnitType.Sp)
+        )
+        Spacer(Modifier.height(3.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier.fillMaxWidth().height(38.dp),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodySmall,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Violet,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+            )
+        )
+    }
+}
+
 
 @Composable
 private fun StatusPill(label: String, count: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
