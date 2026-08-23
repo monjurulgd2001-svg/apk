@@ -32,10 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.zedge.automation.config.AppConfig
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PrimaryPink
 import com.zedge.automation.ui.theme.TextMuted
+import com.zedge.automation.ui.theme.ThemeState
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
 
@@ -49,8 +49,6 @@ fun SettingsScreen(vm: MainViewModel, onStableAudioLogin: () -> Unit = {}) {
     val settings = vm.settings
     var keysText by remember { mutableStateOf(settings.geminiApiKeys.joinToString("\n")) }
     var model by remember { mutableStateOf(settings.geminiModel) }
-    var mistralKeysText by remember { mutableStateOf("") }
-    var mistralModel by remember { mutableStateOf(settings.mistralModel) }
     var token by remember { mutableStateOf(settings.stableAudioToken) }
     var savedMsg by remember { mutableStateOf("") }
 
@@ -59,7 +57,33 @@ fun SettingsScreen(vm: MainViewModel, onStableAudioLogin: () -> Unit = {}) {
     LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Text("\u2699\uFE0F Settings", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            Text("Keyগুলো শুধু এই ডিভাইসে সেভ থাকে — ওয়েব ড্যাশবোর্ডের localStorage-এর মতোই", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+            Text("Keyগুলো শুধু এই ডিভাইসে সেভ থাকে — ওয়েব ড্যাশবোর্ডের localStorage-এর মতোই", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Row(
+                    Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Appearance", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            if (ThemeState.isDark) "Dark mode active" else "Light mode active",
+                            style = MaterialTheme.typography.bodySmall, color = TextMuted
+                        )
+                    }
+                    Button(
+                        onClick = { ThemeState.isDark = !ThemeState.isDark },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (ThemeState.isDark) Violet else PrimaryPink
+                        )
+                    ) {
+                        Text(if (ThemeState.isDark) "\u263E Night" else "\u2600 Day", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
         }
         item {
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
@@ -88,50 +112,6 @@ fun SettingsScreen(vm: MainViewModel, onStableAudioLogin: () -> Unit = {}) {
                         ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             models.forEach { m ->
                                 DropdownMenuItem(text = { Text(m) }, onClick = { model = m; expanded = false })
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("\uD83D\uDE80 Mistral AI (Fallback)", fontWeight = FontWeight.SemiBold)
-                        val totalKeys = settings.mistralApiKeys.size
-                        val userKeys = settings.userMistralKeys.size
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(
-                                    if (userKeys > 0) "$userKeys custom + built-in"
-                                    else "$totalKeys built-in keys"
-                                )
-                            }
-                        )
-                    }
-                    Text(
-                        "Gemini fail হলে Mistral automatically ব্যবহার হবে। ${AppConfig.FALLBACK_MISTRAL_KEYS.size}টা built-in key আছে।",
-                        style = MaterialTheme.typography.bodySmall, color = TextMuted
-                    )
-                    OutlinedTextField(
-                        mistralKeysText, { mistralKeysText = it },
-                        label = { Text("Mistral API Keys (one per line)") },
-                        modifier = Modifier.fillMaxWidth(), minLines = 2
-                    )
-                    var expandedM by remember { mutableStateOf(false) }
-                    val mistralModels = listOf("mistral-small-latest", "mistral-large-latest", "pixtral-12b-2409", "pixtral-large-latest")
-                    ExposedDropdownMenuBox(expanded = expandedM, onExpandedChange = { expandedM = it }) {
-                        OutlinedTextField(
-                            value = mistralModel, onValueChange = {}, readOnly = true,
-                            label = { Text("Mistral Model") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expandedM) },
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
-                        )
-                        ExposedDropdownMenu(expanded = expandedM, onDismissRequest = { expandedM = false }) {
-                            mistralModels.forEach { m ->
-                                DropdownMenuItem(text = { Text(m) }, onClick = { mistralModel = m; expandedM = false })
                             }
                         }
                     }
@@ -207,8 +187,6 @@ fun SettingsScreen(vm: MainViewModel, onStableAudioLogin: () -> Unit = {}) {
                 onClick = {
                     settings.geminiApiKeys = keysText.lines().map { it.trim() }.filter { it.isNotEmpty() }
                     settings.geminiModel = model
-                    settings.userMistralKeys = mistralKeysText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                    settings.mistralModel = mistralModel
                     settings.stableAudioToken = token.trim()
                     savedMsg = "\u2705 Settings saved!"
                 },

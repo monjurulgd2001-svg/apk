@@ -107,7 +107,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val isAudio = mime.startsWith("audio") || name.lowercase().endsWith(".mp3")
         var meta = manualMeta
 
-        if (settings.hasGeminiKeys() && (meta.title.isBlank() || meta.tags.isBlank() || meta.category.isBlank() || meta.description.isBlank())) {
+        if (settings.hasAnyAiKeys() && (meta.title.isBlank() || meta.tags.isBlank() || meta.category.isBlank() || meta.description.isBlank())) {
             try {
                 setProgress(if (isAudio) "\uD83E\uDD16 Gemini is generating ringtone metadata..." else "\uD83E\uDD16 Gemini is analyzing the image...")
                 val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
@@ -181,7 +181,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             try {
                 val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
-                val meta = if (settings.hasGeminiKeys())
+                val meta = if (settings.hasAnyAiKeys())
                     runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
                 else fallbackMeta(prompt)
                 val ext = if (mime.contains("wav")) ".wav" else ".mp3"
@@ -221,8 +221,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 prompts.indices.forEach { updateBulk(it, "No Stable Audio token") }
                 return@launch
             }
-            if (!settings.hasGeminiKeys()) {
-                prompts.indices.forEach { updateBulk(it, "No Gemini key (needed for metadata)") }
+            if (!settings.hasGeminiKeys() && !settings.hasMistralKeys()) {
+                prompts.indices.forEach { updateBulk(it, "No AI key (Gemini or Mistral)") }
                 return@launch
             }
             prompts.forEachIndexed { i, prompt ->
@@ -252,7 +252,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg"): String? {
         return try {
             val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
-            val meta = if (settings.hasGeminiKeys())
+            val meta = if (settings.hasAnyAiKeys())
                 runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
             else fallbackMeta(prompt)
             val ext = if (mime.contains("wav")) ".wav" else ".mp3"
@@ -292,7 +292,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     setProgress("Distributing image ${index + 1}/${uris.size} \u2192 $targetKey...", index, uris.size)
                     val (bytes, name, mime) = readUri(resolver, uri)
                     var meta = MetaData()
-                    if (settings.hasGeminiKeys()) {
+                    if (settings.hasAnyAiKeys()) {
                         meta = runCatching {
                             gemini.analyzeImage(toJpegBase64(bytes), FirebaseRepo.getExistingTitles(targetKey))
                         }.getOrDefault(MetaData())

@@ -58,6 +58,8 @@ class SettingsStore(context: Context) {
 
     fun hasGeminiKeys() = geminiApiKeys.isNotEmpty()
 
+    fun hasAnyAiKeys() = hasGeminiKeys() || hasMistralKeys()
+
     var mistralModel: String
         get() = prefs.getString("mistralModel", "mistral-small-latest") ?: "mistral-small-latest"
         set(v) = prefs.edit().putString("mistralModel", v).apply()
