@@ -6,6 +6,8 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,12 +85,28 @@ fun StableAudioLoginScreen(
     var showLogoutConfirm by remember { mutableStateOf(false) }
 
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    val context = LocalContext.current
+
+    // Smart back: block accidental exit while login/token extraction is running
+    BackHandler {
+        if (isBusy) {
+            Toast.makeText(context, "Login in progress — please wait…", Toast.LENGTH_SHORT).show()
+        } else {
+            onBack()
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         TopAppBar(
             title = { Text("Stable Audio Login", fontWeight = FontWeight.Bold) },
             navigationIcon = {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    if (isBusy) {
+                        Toast.makeText(context, "Login in progress — please wait…", Toast.LENGTH_SHORT).show()
+                    } else {
+                        onBack()
+                    }
+                }) {
                     Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                 }
             },

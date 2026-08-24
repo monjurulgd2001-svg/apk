@@ -17,9 +17,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Gemini auto-metadata — identical API contract, key rotation, retry
- * behaviour and prompts as the web dashboard (main.js).
+ * Gemini auto-metadata — same API contract, key rotation and retry
+ * behaviour as the web dashboard (main.js).
  * Falls back to Mistral when Gemini fails.
+ *
+ * v3.1 METADATA FIX: Ringtone metadata (genMeta) now uses ONE strict-JSON
+ * call with hard per-field validation instead of 4 parallel free-text calls.
+ * Garbage metadata is never returned silently — the caller decides what to
+ * do on failure (bad metadata can get a Zedge account suspended).
  */
 class GeminiClient(private val settings: SettingsStore, private val mistral: MistralClient? = null) {
 
@@ -40,16 +45,23 @@ class GeminiClient(private val settings: SettingsStore, private val mistral: Mis
     private fun endpoint(model: String) =
         "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent"
 
-    private suspend fun callGemini(bodyParts: JSONArray, retries: Int = 3): String =
+    private suspend fun callGemini(
+        bodyParts: JSONArray,
+        retries: Int = 3,
+        jsonMode: Boolean = false,
+        temperature: Double = 1.0
+    ): String =
         withContext(Dispatchers.IO) {
             var lastErr: Exception? = null
             for (attempt in 1..retries) {
                 try {
                     val key = nextKey()
                     val model = settings.geminiModel.ifBlank { AppConfig.DEFAULT_GEMINI_MODEL }
+                    val genCfg = JSONObject().put("temperature", temperature).put("maxOutputTokens", 8192)
+                    if (jsonMode) genCfg.put("responseMimeType", "application/json")
                     val body = JSONObject()
                         .put("contents", JSONArray().put(JSONObject().put("parts", bodyParts)))
-                        .put("generationConfig", JSONObject().put("temperature", 1).put("maxOutputTokens", 8192))
+                        .put("generationConfig", genCfg)
                     val req = Request.Builder()
                         .url(endpoint(model))
                         .header("Content-Type", "application/json")
@@ -78,12 +90,16 @@ class GeminiClient(private val settings: SettingsStore, private val mistral: Mis
             throw lastErr ?: Exception("Gemini failed")
         }
 
-    suspend fun gemini(text: String): String {
+    suspend fun gemini(text: String, jsonMode: Boolean = false): String {
         return try {
-            callGemini(JSONArray().put(JSONObject().put("text", text)))
+            callGemini(
+                JSONArray().put(JSONObject().put("text", text)),
+                jsonMode = jsonMode,
+                temperature = if (jsonMode) 0.4 else 1.0
+            )
         } catch (e: Exception) {
             if (mistral != null && settings.hasMistralKeys()) {
-                try { mistral.mistral(text) } catch (e2: Exception) { throw e }
+                try { mistral.mistral(text, jsonMode) } catch (e2: Exception) { throw e }
             } else throw e
         }
     }
@@ -139,21 +155,112 @@ class GeminiClient(private val settings: SettingsStore, private val mistral: Mis
         )
     }
 
-    /** Ringtone: 4 parallel Gemini text calls — same prompts as genMeta() */
-    suspend fun genMeta(prompt: String, existingTitles: List<String> = emptyList()): MetaData = coroutineScope {
+    // ---------- Ringtone metadata (strict JSON, v3.1) ----------
+
+    /**
+     * Ringtone metadata — ONE strict-JSON AI call for title+tags+category+description.
+     * - 4x fewer API calls than the old 4-parallel-call design => far fewer 429 rate-limit failures
+     * - Lower temperature + JSON mode => far better instruction compliance
+     * - Hard validation on every field; THROWS instead of returning junk metadata
+     */
+    suspend fun genMeta(prompt: String, existingTitles: List<String> = emptyList()): MetaData {
         val avoid = if (existingTitles.isNotEmpty())
-            "\nAVOID these existing titles (do NOT generate similar or same): ${existingTitles.take(30).joinToString(", ")}" else ""
-        val title = async { gemini("Prompt: \"$prompt\"\nCatchy 2-3 word title. NO BPM. Return ONLY title.$avoid") }
-        val kw = async { gemini("Prompt: \"$prompt\"\n15 SINGLE-WORD keywords. Comma-separated.") }
-        val cat = async { gemini("Prompt: \"$prompt\"\nChoose: ${AppConfig.AI_RING_CATS.joinToString(", ")}. Return ONLY name.") }
-        val desc = async { gemini("Prompt: \"$prompt\"\nMAX 5 WORDS description. No punctuation.") }
-        val rc = cat.await().replace(Regex("[^A-Z_]"), "").trim()
-        MetaData(
-            title = cleanTitle(title.await(), existingTitles),
-            tags = cleanTags(kw.await()),
-            category = if (AppConfig.AI_RING_CATS.contains(rc)) rc else "OTHER",
-            description = desc.await().trim('"', '\'').replace(Regex("[:\\-]"), "").trim()
-                .split(Regex("\\s+")).take(5).joinToString(" ")
-        )
+            "\n- Do NOT reuse or imitate these existing titles: ${existingTitles.take(30).joinToString(", ")}"
+        else ""
+        val ask = """You write store metadata for a ringtone based on this music prompt: "$prompt"
+Rules:
+- title: catchy, exactly 2-3 words, Title Case, clearly relevant to the prompt. NO bpm numbers, NO word "ringtone".
+- tags: 15 single-word lowercase keywords relevant to the prompt (genre, mood, instruments, use-case).
+- category: EXACTLY one value from this list: ${AppConfig.AI_RING_CATS.joinToString(", ")}
+- description: max 5 words, no punctuation.$avoid
+Return ONLY a valid JSON object with keys "title", "tags", "category", "description". No markdown, no explanations."""
+
+        var lastErr: Exception? = null
+        repeat(2) {
+            try {
+                val raw = gemini(ask, jsonMode = true)
+                val meta = parseRingtoneMeta(raw, existingTitles)
+                if (meta != null) return meta
+                lastErr = Exception("AI returned unusable metadata")
+            } catch (e: Exception) {
+                lastErr = e
+            }
+        }
+        throw lastErr ?: Exception("Metadata generation failed")
+    }
+
+    /** Parses + validates the JSON metadata. Returns null when any field is unusable. */
+    private fun parseRingtoneMeta(raw: String, existingTitles: List<String>): MetaData? {
+        val jsonText = extractJsonObject(raw) ?: return null
+        val obj = try { JSONObject(jsonText) } catch (e: Exception) { return null }
+
+        val title = cleanTitleStrict(obj.optString("title", ""), existingTitles)
+        val tags = cleanTagsStrict(obj.opt("tags"))
+        val category = matchCategory(obj.optString("category", "")) ?: return null
+
+        // Quality gate: refuse half-baked metadata instead of uploading junk.
+        if (title.length < 3) return null
+        if (tags.split(", ").count { it.isNotBlank() } < 3) return null
+
+        val description = cleanDescriptionStrict(obj.optString("description", ""), title)
+        return MetaData(title = title, tags = tags, category = category, description = description)
+    }
+
+    /** Pulls the first {...} object out of the response (tolerates ``` fences / stray text). */
+    private fun extractJsonObject(raw: String): String? {
+        val t = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
+        val start = t.indexOf('{')
+        val end = t.lastIndexOf('}')
+        if (start == -1 || end <= start) return null
+        return t.substring(start, end + 1)
+    }
+
+    /** Case/format-insensitive category match: "Electronica", "HIP HOP", "hip_hop." all resolve correctly. */
+    private fun matchCategory(raw: String): String? {
+        val norm = raw.uppercase().replace(Regex("[^A-Z0-9]+"), "_").trim('_')
+        if (norm.isEmpty()) return null
+        AppConfig.AI_RING_CATS.firstOrNull { it == norm }?.let { return it }
+        val compact = norm.replace("_", "")
+        return AppConfig.AI_RING_CATS.firstOrNull { it.replace("_", "") == compact }
+    }
+
+    private fun cleanTitleStrict(raw: String, existingTitles: List<String>): String {
+        var t = raw.trim()
+            .replace(Regex("(?i)^\\s*(title|name)\\s*[:\\-]\\s*"), "")
+            .replace(Regex("[*_`#\"'\\[\\]{}()]"), "")
+            .replace(Regex("(?i)\\b\\d+\\s*bpm\\b"), "")
+            .replace(Regex("(?i)\\bringtones?\\b"), "")
+            .replace(Regex("[:\\-]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+        t = t.split(" ").filter { it.isNotBlank() }.take(4).joinToString(" ").take(50).trim()
+        t = t.split(" ").joinToString(" ") { w -> w.replaceFirstChar { c -> c.uppercaseChar() } }
+        if (existingTitles.contains(t.lowercase())) {
+            val suffix = listOf("Vibes", "Tone", "Wave", "Mix", "Echo", "Beat").random()
+            t = (t.take(43).trim() + " " + suffix)
+        }
+        return t
+    }
+
+    /** Accepts a JSON array or a comma/newline separated string. */
+    private fun cleanTagsStrict(rawTags: Any?): String {
+        val list: List<String> = when (rawTags) {
+            is JSONArray -> (0 until rawTags.length()).map { rawTags.optString(it, "") }
+            is String -> rawTags.split(Regex("[,;\\n]"))
+            else -> emptyList()
+        }
+        return list.asSequence()
+            .map { it.lowercase().replace(Regex("[^a-z0-9]"), "") }
+            .filter { it.length in 2..24 }
+            .distinct()
+            .take(10)
+            .joinToString(", ")
+    }
+
+    private fun cleanDescriptionStrict(raw: String, title: String): String {
+        val d = raw.replace(Regex("[^A-Za-z0-9 ]"), " ")
+            .replace(Regex("\\s+"), " ").trim()
+            .split(" ").filter { it.isNotBlank() }.take(5).joinToString(" ")
+        return d.ifBlank { "$title melody" }
     }
 }

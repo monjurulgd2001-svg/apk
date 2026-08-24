@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * Mistral AI client — fallback when Gemini fails.
  * Same key rotation + retry pattern as GeminiClient.
+ * v3.1: supports strict JSON mode (response_format json_object) for metadata.
  */
 class MistralClient(private val settings: SettingsStore) {
 
@@ -39,6 +40,7 @@ class MistralClient(private val settings: SettingsStore) {
         temperature: Double = 0.9,
         maxTokens: Int = 512,
         modelOverride: String? = null,
+        jsonMode: Boolean = false,
         retries: Int = 3
     ): String = withContext(Dispatchers.IO) {
         var lastErr: Exception? = null
@@ -51,6 +53,7 @@ class MistralClient(private val settings: SettingsStore) {
                     .put("messages", messages)
                     .put("temperature", temperature)
                     .put("max_tokens", maxTokens)
+                if (jsonMode) body.put("response_format", JSONObject().put("type", "json_object"))
                 val req = Request.Builder()
                     .url(endpoint)
                     .header("Content-Type", "application/json")
@@ -78,8 +81,12 @@ class MistralClient(private val settings: SettingsStore) {
     }
 
     /** Text-only call — same as GeminiClient.gemini() */
-    suspend fun mistral(text: String): String =
-        callMistral(JSONArray().put(JSONObject().put("role", "user").put("content", text)))
+    suspend fun mistral(text: String, jsonMode: Boolean = false): String =
+        callMistral(
+            JSONArray().put(JSONObject().put("role", "user").put("content", text)),
+            temperature = if (jsonMode) 0.4 else 0.9,
+            jsonMode = jsonMode
+        )
 
     /** Vision call with image — same as GeminiClient.geminiWithImage() */
     suspend fun mistralWithImage(base64Jpeg: String, prompt: String): String {

@@ -12,6 +12,7 @@
         android:label="Zedge Automation"
         android:supportsRtl="true"
         android:theme="@style/Theme.ZedgeAutomation"
+        android:enableOnBackInvokedCallback="true"
         android:usesCleartextTraffic="false">
 
         <activity

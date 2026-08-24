@@ -11,7 +11,7 @@ import java.nio.ByteOrder
 import kotlin.math.abs
 import kotlin.math.min
 
-data class AudioProcessResult(val data: ByteArray, val mimeType: String)
+data class AudioProcessResult(val data: ByteArray, val mimeType: String, val durationSec: Double? = null)
 
 fun processAudio(mp3Bytes: ByteArray, gain: Float, silenceThreshold: Float, padMs: Int): AudioProcessResult {
     val tempIn = File.createTempFile("process_in", ".mp3")
@@ -32,7 +32,9 @@ fun processAudio(mp3Bytes: ByteArray, gain: Float, silenceThreshold: Float, padM
         System.arraycopy(trimmed, 0, padded, padBytes, trimmed.size)
 
         val wavBytes = encodeToWav(padded, sampleRate, channels)
-        return AudioProcessResult(wavBytes, "audio/wav")
+        // Actual duration after trim + padding — so the queue metadata matches the real file.
+        val outDurationSec = padded.size.toDouble() / (sampleRate * bytesPerSample)
+        return AudioProcessResult(wavBytes, "audio/wav", outDurationSec)
     } catch (e: Exception) {
         return AudioProcessResult(mp3Bytes, "audio/mpeg")
     } finally {

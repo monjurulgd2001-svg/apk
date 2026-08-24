@@ -69,3 +69,37 @@ app/src/main/java/com/zedge/automation/
 
 - ওয়েবের **Audio Editor** (waveform trim/volume) ও **Auto-Create Account browser extension** ফিচার দুটি ব্রাউজার-নির্ভর, তাই মোবাইলে বেসিক প্লেব্যাক রাখা হয়েছে; বাকি সব ফ্লো এক।
 - ভবিষ্যতে ওয়েবে Firebase config বদলালে শুধু `AppConfig.kt`-এ একই ভ্যালু বসালেই হবে।
+
+---
+
+## 🔒 v3.1 — Metadata Fix
+
+Bulk/AI ringtone metadata generation was rewritten for Zedge account safety:
+
+- **One strict-JSON AI call** (instead of 4 separate free-text calls) — title, tags, category & description come together; ~4x fewer rate-limit (429) failures. Temperature lowered to 0.4 in JSON mode for reliable instruction-following.
+- **Hard validation, no silent junk**: if a valid title/tags/category cannot be produced, the item is **NOT uploaded** — the bulk list shows `Failed: Metadata AI failed — NOT uploaded`. (Previously the raw prompt text silently became the title, category fell back to OTHER, and the item still showed "Done".)
+- **Case/format-insensitive category matching** — answers like `Electronica`, `HIP HOP`, `hip_hop.` now map to the correct category instead of OTHER.
+- **Title cleanup**: strips `Title:` prefixes, markdown (`**`), bpm mentions and the word "ringtone"; duplicate titles get a natural suffix (Vibes/Tone/Mix/...) instead of 3 random letters.
+- **New “Generating metadata...” step** shown in the bulk status list (also counted as a running state so the Generate button stays locked).
+- **Accurate duration**: after Auto Trim + Boost, the real post-trim duration is saved instead of the requested length.
+- Mistral fallback now also uses strict JSON mode (`response_format: json_object`).
+
+## 📅 v3.2 — Schedule Planner + Duration
+
+- **Duration range is now 1–180 seconds** in AI Studio (was 5–180); label shows the valid range.
+- **Schedule Calendar completely rebuilt** as a 1:1 port of the web dashboard's "Publishing Layout Planner":
+  - Stats legend: Active DB · Remaining Today · Uploaded Today (x/3) · Audio Queue · Wallpapers
+  - Days alternate AUDIO / WALLPAPER types with 3 upload slots per day
+  - Today's day type & remaining slots read live from Firebase `uploadState` (lastUploadDate / uploadDayType / totalUploadsToday) — same `M/d/yyyy` Dhaka date key as the dashboard
+  - Queued items (status = queued, oldest first) are allocated into future slots: audio → AUDIO days, wallpapers → WALLPAPER days
+  - Planner extends past 28 days until every queued item has a slot; 28 days per page with Prev/Next pagination
+  - "All Uploads Done! 🎉" state when today's 3 uploads are complete
+  - Previous screen only showed a history of when items were created — it did not reflect the real upload schedule.
+
+## v3.3 — Back Button Handling (2026-08-24)
+
+- **Bulk-run exit guard**: pressing back on Home during an active bulk run now shows a confirm dialog ("Bulk generation running!") instead of instantly closing the app. "Exit anyway" stops the run cleanly via stopBulkGeneration() before exiting; "Keep running" dismisses.
+- **Double-press to exit**: on Home, first back press shows "Press back again to exit" toast (2s window) — no more accidental exits.
+- **Stable Audio login smart back**: system back and the toolbar arrow show a "Login in progress" toast while token extraction is busy; normal back otherwise.
+- **Predictive back gesture**: android:enableOnBackInvokedCallback="true" added to the manifest (Android 13+ animations).
+- Dialogs (queue edit, logout confirm) already close on back by default (Compose AlertDialog) — unchanged.

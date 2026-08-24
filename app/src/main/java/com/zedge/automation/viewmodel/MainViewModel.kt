@@ -43,6 +43,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _activeProject = MutableStateFlow(settings.activeProject)
     val activeProject: StateFlow<String> = _activeProject.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     private val _queueItems = MutableStateFlow<List<QueueItem>>(emptyList())
     val queueItems: StateFlow<List<QueueItem>> = _queueItems.asStateFlow()
 
@@ -78,6 +81,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
         stateJob = viewModelScope.launch {
             runCatching { FirebaseRepo.uploadStateFlow(projectKey).collect { _uploadState.value = it } }
+        }
+    }
+
+    /** Pull-to-refresh: briefly show the spinner then reconnect the live listeners. */
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            connectToDatabase(_activeProject.value)
+            kotlinx.coroutines.delay(800)
+            _isRefreshing.value = false
         }
     }
 
@@ -179,32 +192,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addGeneratedToQueue(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg", onDone: (String?) -> Unit) {
         viewModelScope.launch {
-            try {
-                val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
-                val meta = if (settings.hasAnyAiKeys())
-                    runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
-                else fallbackMeta(prompt)
-                val ext = if (mime.contains("wav")) ".wav" else ".mp3"
-                val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
-                    .replace(" ", "_").ifBlank { "ai_ringtone" } + ext
-                val fileUrl = R2Client.upload(audioBytes, fileName, _activeProject.value, mime)
-                FirebaseRepo.addQueueItem(
-                    projectKey = _activeProject.value,
-                    name = fileName, type = mime, size = audioBytes.size.toLong(),
-                    isMp3 = true, fileUrl = fileUrl, meta = meta, duration = durationSec
-                )
-                onDone(null)
-            } catch (e: Exception) { onDone(e.message) }
+            onDone(addGeneratedToQueueSync(audioBytes, prompt, durationSec, mime))
         }
     }
-
-    private fun fallbackMeta(prompt: String) = MetaData(
-        title = prompt.take(50).ifBlank { "AI Ringtone" },
-        tags = prompt.split(Regex("\\s+")).map { it.replace(Regex("[^a-zA-Z0-9]"), "") }
-            .filter { it.isNotEmpty() }.take(10).joinToString(", "),
-        category = "OTHER",
-        description = prompt.split(Regex("\\s+")).take(5).joinToString(" ")
-    )
 
     fun startBulkGeneration(
         prompts: List<String>,
@@ -230,13 +220,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 try {
                     var bytes = generateRingtone(prompt, lengthSeconds) { }
                     var mime = "audio/mpeg"
+                    var actualDuration = lengthSeconds.toDouble()
                     if (autoTrimBoost) {
                         updateBulk(i, "Processing audio...")
                         val result = processAudio(bytes, gainPercent / 100f, silenceThreshold, padMs)
                         bytes = result.data
                         mime = result.mimeType
+                        result.durationSec?.let { d -> actualDuration = d }
                     }
-                    val err = addGeneratedToQueueSync(bytes, prompt, lengthSeconds.toDouble(), mime)
+                    updateBulk(i, "Generating metadata...")
+                    val err = addGeneratedToQueueSync(bytes, prompt, actualDuration, mime)
                     updateBulk(i, if (err == null) "Done" else "Failed: $err")
                 } catch (e: StableAuthRequiredException) {
                     updateBulk(i, "Failed: Auth required")
@@ -248,13 +241,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Suspend version of addGeneratedToQueue — returns error message or null on success. */
+    /**
+     * Adds a generated ringtone to the queue. Returns error message or null on success.
+     * SAFETY (v3.1): if trustworthy AI metadata cannot be produced, the item is
+     * NOT uploaded — junk metadata (raw-prompt titles, wrong category) risks a
+     * Zedge account suspension. The bulk list shows a clear Failed status instead.
+     */
     private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg"): String? {
-        return try {
+        val meta = try {
             val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
-            val meta = if (settings.hasAnyAiKeys())
-                runCatching { gemini.genMeta(prompt, existing) }.getOrElse { fallbackMeta(prompt) }
-            else fallbackMeta(prompt)
+            gemini.genMeta(prompt, existing)
+        } catch (e: Exception) {
+            return "Metadata AI failed — NOT uploaded (${e.message?.take(60) ?: "check API keys"})"
+        }
+        return try {
             val ext = if (mime.contains("wav")) ".wav" else ".mp3"
             val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
                 .replace(" ", "_").ifBlank { "ai_ringtone" } + ext

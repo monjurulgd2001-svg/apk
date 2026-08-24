@@ -38,6 +38,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -77,7 +78,11 @@ fun AiStudioScreen(vm: MainViewModel) {
     // ── Stable Audio auth state ──
     val scope = rememberCoroutineScope()
     val auth = remember { StableAudioAuth(vm.settings) }
+    // Read token once into state — avoids repeated SharedPreferences I/O on every recomposition
+    var hasToken by remember { mutableStateOf(vm.settings.stableAudioToken.isNotBlank()) }
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
+    // Track whether the WebView has been triggered (lazy-load)
+    var webViewRequested by remember { mutableStateOf(false) }
     var authStatus by remember { mutableStateOf("") }
     var authBusy by remember { mutableStateOf(false) }
     var authSuccess by remember { mutableStateOf(false) }
@@ -90,11 +95,12 @@ fun AiStudioScreen(vm: MainViewModel) {
     var autoTrimBoost by remember { mutableStateOf(false) }
     var bulkPrompts by remember { mutableStateOf("") }
 
-    val promptCount = bulkPrompts.lines().map { it.trim() }.filter { it.isNotEmpty() }.size
-    val doneCount = bulkStatuses.count { it.status.startsWith("Done") }
-    val failCount = bulkStatuses.count { it.status.startsWith("Failed") }
-    val runningCount = bulkStatuses.count { it.status == "Composing" || it.status == "Processing audio..." }
-    val isRunning = bulkStatuses.any { it.status == "Composing" || it.status == "Processing audio..." }
+    // derivedStateOf → only recalculates when the underlying state actually changes
+    val promptCount by remember { derivedStateOf { bulkPrompts.lines().count { it.trim().isNotEmpty() } } }
+    val doneCount    by remember { derivedStateOf { bulkStatuses.count { it.status.startsWith("Done") } } }
+    val failCount    by remember { derivedStateOf { bulkStatuses.count { it.status.startsWith("Failed") } } }
+    val runningCount by remember { derivedStateOf { bulkStatuses.count { it.status == "Composing" || it.status == "Processing audio..." || it.status == "Generating metadata..." } } }
+    val isRunning    by remember { derivedStateOf { bulkStatuses.any  { it.status == "Composing" || it.status == "Processing audio..." || it.status == "Generating metadata..." } } }
 
     Box(Modifier.fillMaxSize()) {
 
@@ -122,16 +128,16 @@ fun AiStudioScreen(vm: MainViewModel) {
                         Box(
                             Modifier
                                 .background(
-                                    if (vm.settings.stableAudioToken.isNotBlank()) MintGreen.copy(alpha = 0.15f)
+                                    if (hasToken) MintGreen.copy(alpha = 0.15f)
                                     else Color.White.copy(alpha = 0.07f),
                                     RoundedCornerShape(8.dp)
                                 )
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
-                                if (vm.settings.stableAudioToken.isNotBlank()) "\u2713 Active" else "No Token",
+                                if (hasToken) "\u2713 Active" else "No Token",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (vm.settings.stableAudioToken.isNotBlank()) MintGreen else TextMuted,
+                                color = if (hasToken) MintGreen else TextMuted,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -157,16 +163,28 @@ fun AiStudioScreen(vm: MainViewModel) {
                         onClick = {
                             scope.launch {
                                 authBusy = true; authError = false; authSuccess = false
-                                authStatus = "Starting automation..."
+                                // Trigger WebView lazy-load on first press
+                                if (!webViewRequested) {
+                                    webViewRequested = true
+                                    authStatus = "Loading WebView, please wait..."
+                                    // Give the WebView factory time to create & attach
+                                    var waited = 0
+                                    while (webViewRef.value == null && waited < 8000) {
+                                        kotlinx.coroutines.delay(200)
+                                        waited += 200
+                                    }
+                                }
                                 val wv = webViewRef.value
                                 if (wv == null) {
-                                    authStatus = "WebView loading, please wait..."
+                                    authStatus = "WebView not ready, try again."
                                     authBusy = false; return@launch
                                 }
+                                authStatus = "Starting automation..."
                                 val result = auth.performAutoAccountCreation(wv) { msg -> authStatus = msg }
                                 authBusy = false
                                 if (result.success) {
                                     authSuccess = true
+                                    hasToken = true
                                     authStatus = "\u2713 Token synced! Ready for generation."
                                 } else {
                                     authError = true
@@ -184,7 +202,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(
-                            if (authBusy) "Creating account..." else "Auto-Create Account \u0026 Sync Token",
+                            if (authBusy) "Creating account..." else "Auto-Create Account & Sync Token",
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -266,8 +284,8 @@ fun AiStudioScreen(vm: MainViewModel) {
                     // Settings grid — Duration alone (full width) + 3 compact fields in one row
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         // Duration — full width, prominent
-                        SettingInput("Duration (s)", "${duration.toInt()}", Modifier.fillMaxWidth()) {
-                            it.toFloatOrNull()?.let { v -> duration = v.coerceIn(5f, 180f) }
+                        SettingInput("Duration (s) · 1-180", "${duration.toInt()}", Modifier.fillMaxWidth()) {
+                            it.toFloatOrNull()?.let { v -> duration = v.coerceIn(1f, 180f) }
                         }
                         // Gain, Silence, Pad — compact 3-column row
                         Row(
@@ -365,6 +383,7 @@ fun AiStudioScreen(vm: MainViewModel) {
 
         // ── Status list ──
         items(bulkStatuses) { s ->
+            val isWorking = s.status == "Composing" || s.status == "Processing audio..." || s.status == "Generating metadata..."
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -383,7 +402,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                                 when {
                                     s.status.startsWith("Done") -> MintGreen.copy(alpha = 0.15f)
                                     s.status.startsWith("Failed") -> MaterialTheme.colorScheme.error.copy(alpha = 0.15f)
-                                    s.status == "Composing" -> PastelOrange.copy(alpha = 0.15f)
+                                    isWorking -> PastelOrange.copy(alpha = 0.15f)
                                     else -> Color.White.copy(alpha = 0.08f)
                                 }
                             ),
@@ -393,14 +412,14 @@ fun AiStudioScreen(vm: MainViewModel) {
                             when {
                                 s.status.startsWith("Done") -> Icons.Filled.CheckCircle
                                 s.status.startsWith("Failed") -> Icons.Filled.Error
-                                s.status == "Composing" -> Icons.Filled.MusicNote
+                                isWorking -> Icons.Filled.MusicNote
                                 else -> Icons.Filled.HourglassBottom
                             },
                             contentDescription = null,
                             tint = when {
                                 s.status.startsWith("Done") -> MintGreen
                                 s.status.startsWith("Failed") -> MaterialTheme.colorScheme.error
-                                s.status == "Composing" -> PastelOrange
+                                isWorking -> PastelOrange
                                 else -> TextMuted
                             },
                             modifier = Modifier.size(18.dp)
@@ -416,7 +435,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                         color = when {
                             s.status.startsWith("Done") -> MintGreen
                             s.status.startsWith("Failed") -> MaterialTheme.colorScheme.error
-                            s.status == "Composing" -> PastelOrange
+                            isWorking -> PastelOrange
                             else -> TextMuted
                         }
                     )
@@ -428,35 +447,38 @@ fun AiStudioScreen(vm: MainViewModel) {
         item { Spacer(Modifier.height(8.dp)) }
     }
 
-    // Hidden WebView — background-এ Stable Audio automation চালায়, ইউজার দেখবে না
-    AndroidView(
-        factory = { ctx ->
-            WebView(ctx).apply {
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
-                alpha = 0f
-                settings.javaScriptEnabled = true
-                settings.domStorageEnabled = true
-                settings.databaseEnabled = true
-                settings.allowFileAccess = true
-                settings.userAgentString = settings.userAgentString.replace("wv", "")
-                val wv = this
-                CookieManager.getInstance().apply {
-                    setAcceptCookie(true)
-                    setAcceptThirdPartyCookies(wv, true)
-                }
-                webViewClient = object : WebViewClient() {
-                    override fun onPageFinished(view: WebView?, url: String?) {
-                        super.onPageFinished(view, url)
-                        settings.domStorageEnabled = true
+    // Hidden WebView — lazy: only created after the user taps "Auto-Create"
+    // This avoids loading an entire website on every Studio tab visit.
+    if (webViewRequested) {
+        AndroidView(
+            factory = { ctx ->
+                WebView(ctx).apply {
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 1)
+                    alpha = 0f
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.allowFileAccess = true
+                    settings.userAgentString = settings.userAgentString.replace("wv", "")
+                    val wv = this
+                    CookieManager.getInstance().apply {
+                        setAcceptCookie(true)
+                        setAcceptThirdPartyCookies(wv, true)
                     }
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            settings.domStorageEnabled = true
+                        }
+                    }
+                    webChromeClient = WebChromeClient()
+                    webViewRef.value = this
+                    loadUrl(StableAudioAuth.STABLE_AUDIO_URL)
                 }
-                webChromeClient = WebChromeClient()
-                webViewRef.value = this
-                loadUrl(StableAudioAuth.STABLE_AUDIO_URL)
-            }
-        },
-        modifier = Modifier.fillMaxWidth().height(1.dp)
-    )
+            },
+            modifier = Modifier.fillMaxWidth().height(1.dp)
+        )
+    }
 
     } // end Box
 }
@@ -469,11 +491,14 @@ private fun SettingInput(label: String, value: String, modifier: Modifier, onVal
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth().height(48.dp),
+            modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Violet,
-                unfocusedBorderColor = Color.White.copy(alpha = 0.15f)
+                unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             )
         )
     }
@@ -486,19 +511,20 @@ private fun CompactSettingInput(label: String, value: String, modifier: Modifier
             label,
             style = MaterialTheme.typography.labelSmall,
             color = TextMuted,
-            fontWeight = FontWeight.Medium,
-            fontSize = androidx.compose.ui.unit.TextUnit(9f, androidx.compose.ui.unit.TextUnitType.Sp)
+            fontWeight = FontWeight.Medium
         )
-        Spacer(Modifier.height(3.dp))
+        Spacer(Modifier.height(4.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth().height(38.dp),
+            modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Violet,
-                unfocusedBorderColor = Color.White.copy(alpha = 0.12f)
+                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
             )
         )
     }

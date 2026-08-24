@@ -25,9 +25,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -43,6 +45,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.zedge.automation.data.QueueItem
 import com.zedge.automation.ui.AudioPlayer
+import com.zedge.automation.ui.AudioProgressBar
+import com.zedge.automation.ui.AudioProgressPoller
 import com.zedge.automation.ui.WallpaperPreviewDialog
 import com.zedge.automation.ui.theme.BlueSoft
 import com.zedge.automation.ui.theme.ChipBg
@@ -71,10 +75,12 @@ fun formatBytes(bytes: Long): String {
 }
 
 /** Dark "Automation Hub" style dashboard fed with the user's live queue data. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel, onViewAll: () -> Unit = {}) {
     val items by vm.queueItems.collectAsState()
     val activeProject by vm.activeProject.collectAsState()
+    val isRefreshing by vm.isRefreshing.collectAsState()
     var previewItem by remember { mutableStateOf<QueueItem?>(null) }
 
     val total = items.size
@@ -82,47 +88,54 @@ fun HomeScreen(vm: MainViewModel, onViewAll: () -> Unit = {}) {
     val audios = items.count { it.isAudio }
     val wallpapers = total - audios
 
-    LazyColumn(
-        Modifier.fillMaxSize().padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { vm.refresh() }
     ) {
-        item {
-            Text(
-                "System Performance Indicators",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = TextMuted
-            )
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard("Active DB", activeProject.uppercase(Locale.US), Icons.Filled.Storage, VioletSoft, VioletLight, Modifier.weight(1f))
-                StatCard("Queued Assets", "$queued", Icons.Filled.AccessTime, BlueSoft, SkyBlue, Modifier.weight(1f))
-            }
-        }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard("Audios Loaded", "$audios", Icons.Filled.MusicNote, PinkSoft, PrimaryPink, Modifier.weight(1f))
-                StatCard("Wallpapers", "$wallpapers", Icons.Filled.Image, GreenSoft, MintGreen, Modifier.weight(1f))
-            }
-        }
-        item {
-            Row(
-                Modifier.fillMaxWidth().padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Recently Added in Queue", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        // Single poller drives all audio progress bars on this screen
+        AudioProgressPoller()
+        LazyColumn(
+            Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
                 Text(
-                    "View All",
-                    color = PrimaryPink,
+                    "System Performance Indicators",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.clickable { onViewAll() }
+                    color = TextMuted
                 )
             }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard("Active DB", activeProject.uppercase(Locale.US), Icons.Filled.Storage, VioletSoft, VioletLight, Modifier.weight(1f))
+                    StatCard("Queued Assets", "$queued", Icons.Filled.AccessTime, BlueSoft, SkyBlue, Modifier.weight(1f))
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard("Audios Loaded", "$audios", Icons.Filled.MusicNote, PinkSoft, PrimaryPink, Modifier.weight(1f))
+                    StatCard("Wallpapers", "$wallpapers", Icons.Filled.Image, GreenSoft, MintGreen, Modifier.weight(1f))
+                }
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Recently Added in Queue", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "View All",
+                        color = PrimaryPink,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable { onViewAll() }
+                    )
+                }
+            }
+            items(items.take(12)) { item -> QueueCard(item, onPreview = { previewItem = item }) }
         }
-        items(items.take(12)) { item -> QueueCard(item, onPreview = { previewItem = item }) }
     }
 
     previewItem?.let { p ->
@@ -179,77 +192,83 @@ private fun QueueCard(item: QueueItem, onPreview: () -> Unit = {}) {
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Thumbnail: real image for wallpapers, music tile for audio
-            if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = item.fileUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp))
-                )
-            } else {
-                Box(
-                    Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Stop" else "Play",
-                        tint = if (isPlaying) PrimaryPink else Violet,
-                        modifier = Modifier.size(34.dp)
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // Thumbnail: real image for wallpapers, music tile for audio
+                if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = item.fileUrl,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp))
                     )
+                } else {
+                    Box(
+                        Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlaying) "Stop" else "Play",
+                            tint = if (isPlaying) PrimaryPink else Violet,
+                            modifier = Modifier.size(34.dp)
+                        )
+                    }
                 }
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    item.title ?: item.name ?: item.id,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
                     Text(
-                        (item.category ?: "OTHER").uppercase(Locale.US),
-                        color = ChipText,
+                        item.title ?: item.name ?: item.id,
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelSmall
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(formatBytes(item.size), color = TextMuted, style = MaterialTheme.typography.labelMedium)
-                }
-                Spacer(Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (item.tags ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3).forEach { tag ->
-                        Box(
-                            Modifier.background(ChipBg, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                tag,
-                                color = ChipText,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1
-                            )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            (item.category ?: "OTHER").uppercase(Locale.US),
+                            color = ChipText,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(formatBytes(item.size), color = TextMuted, style = MaterialTheme.typography.labelMedium)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (item.tags ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3).forEach { tag ->
+                            Box(
+                                Modifier.background(ChipBg, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    tag,
+                                    color = ChipText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
+                Spacer(Modifier.width(8.dp))
+                val isUploaded = item.status == "uploaded" || item.status == "done" || item.status == "published"
+                Box(
+                    Modifier.background(if (isUploaded) PillGreenBg else PillBlueBg, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        (item.status ?: "queued").uppercase(Locale.US),
+                        color = if (isUploaded) PillGreenText else PillBlueText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
-            Spacer(Modifier.width(8.dp))
-            val isUploaded = item.status == "uploaded" || item.status == "done" || item.status == "published"
-            Box(
-                Modifier.background(if (isUploaded) PillGreenBg else PillBlueBg, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    (item.status ?: "queued").uppercase(Locale.US),
-                    color = if (isUploaded) PillGreenText else PillBlueText,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelSmall
-                )
+            // Progress bar — appears below the row only while this audio is playing
+            if (item.isAudio) {
+                AudioProgressBar(itemId = item.id)
             }
         }
     }
