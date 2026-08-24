@@ -103,3 +103,19 @@ Bulk/AI ringtone metadata generation was rewritten for Zedge account safety:
 - **Stable Audio login smart back**: system back and the toolbar arrow show a "Login in progress" toast while token extraction is busy; normal back otherwise.
 - **Predictive back gesture**: android:enableOnBackInvokedCallback="true" added to the manifest (Android 13+ animations).
 - Dialogs (queue edit, logout confirm) already close on back by default (Compose AlertDialog) — unchanged.
+
+## v3.3.1 — Build self-heal for duplicate launcher icons (2026-08-24)
+
+- app/build.gradle.kts now auto-deletes stray mipmap-*/ic_launcher*.png duplicates before every build (preBuild Delete task) and also ignores them via androidResources.ignoreAssetsPattern — fixes "Duplicate resources" CI failures with zero manual file deletion.
+- local.properties removed from the project (machine-specific Windows SDK path; Android Studio regenerates it locally, CI uses ANDROID_HOME).
+- gradle.properties: android.suppressUnsupportedCompileSdk=35 added to silence the AGP 8.5.2 / compileSdk 35 warning.
+- versionName bumped to 3.3.1.
+
+## v3.3.2 — Slow-network hardening for Stable Audio auto-create (2026-08-24)
+
+- StableAudioAuth.kt timeouts increased for slow connections: Sign Up search after logout 15s → 45s, session state check 20s → 40s (retry 15s → 30s), Auth0 form wait 20s → 40s, token wait 45s → 90s, logout page-settle delays 3s → 5s.
+- Clearer error messages that mention slow internet / CAPTCHA and suggest retrying on Wi-Fi.
+
+## v3.3.3 — Compact schedule calendar cards (2026-08-24)
+
+- ScheduleScreen day cards redesigned to match the rest of the app: compact 2-column vertical grid (no horizontal scrolling), one-line header ("24 AUG · MON" + tiny day-type icon), slim dot+title slot rows, minimal "Empty" placeholders, smaller "All Done!" state. Cards are ~60% shorter; stats, header, and pagination unchanged.

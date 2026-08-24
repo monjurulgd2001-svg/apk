@@ -194,7 +194,6 @@ fun ScheduleScreen(vm: MainViewModel) {
     val totalPages = ((allDays.size + DAYS_PER_PAGE - 1) / DAYS_PER_PAGE).coerceAtLeast(1)
     val currentPage = page.coerceIn(1, totalPages)
     val pageDays = allDays.drop((currentPage - 1) * DAYS_PER_PAGE).take(DAYS_PER_PAGE)
-    val weeks = pageDays.chunked(7)
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -256,23 +255,25 @@ fun ScheduleScreen(vm: MainViewModel) {
                 }
             }
 
-            // Day cards — weekly horizontally-scrollable rows
-            items(weeks) { week ->
+            // Day cards — compact 2-column grid (no horizontal scrolling)
+            items(pageDays.chunked(2)) { pair ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(bottom = 10.dp),
+                        .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    week.forEach { day ->
-                        PlannedDayCard(
-                            dayNum = dayNumFmt.format(day.date),
-                            dayLabel = if (day.isToday) "TODAY" else dayNameFmt.format(day.date).uppercase(),
-                            month = monthFmt.format(day.date).uppercase(),
-                            day = day
-                        )
+                    pair.forEach { day ->
+                        Box(Modifier.weight(1f)) {
+                            PlannedDayCard(
+                                dayNum = dayNumFmt.format(day.date),
+                                dayLabel = if (day.isToday) "TODAY" else dayNameFmt.format(day.date).uppercase(),
+                                month = monthFmt.format(day.date).uppercase(),
+                                day = day
+                            )
+                        }
                     }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
 
@@ -321,77 +322,49 @@ private fun PlannedDayCard(dayNum: String, dayLabel: String, month: String, day:
     val badgeColor = if (isAudioDay) Violet else SkyBlue
 
     Card(
-        modifier = Modifier.width(150.dp),
-        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (day.isToday) PrimaryPink.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
         ),
         border = if (day.isToday)
-            BorderStroke(2.dp, PrimaryPink)
+            BorderStroke(1.5.dp, PrimaryPink)
         else
-            BorderStroke(1.dp, Color.White.copy(alpha = 0.07f))
+            BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            // Header: big date number + day/month meta + day-type badge
+        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            // Compact header: "24 AUG · MON" + tiny day-type icon
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        dayNum,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (day.isToday) PrimaryPink else MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 28.sp
-                    )
-                    Column {
-                        Text(
-                            dayLabel,
-                            fontSize = 9.sp, fontWeight = FontWeight.ExtraBold,
-                            color = if (day.isToday) PrimaryPink else MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(month, fontSize = 9.sp, color = TextMuted)
-                    }
-                }
-                Box(
-                    Modifier.size(28.dp).background(badgeColor.copy(alpha = 0.15f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (isAudioDay) Icons.Filled.MusicNote else Icons.Filled.CameraAlt,
-                        contentDescription = null,
-                        tint = badgeColor,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
+                Text(
+                    "$dayNum $month · $dayLabel",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 0.5.sp,
+                    color = if (day.isToday) PrimaryPink else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Icon(
+                    if (isAudioDay) Icons.Filled.MusicNote else Icons.Filled.CameraAlt,
+                    contentDescription = null,
+                    tint = badgeColor,
+                    modifier = Modifier.size(12.dp)
+                )
             }
-
-            // Day type label
-            Text(
-                if (isAudioDay) "AUDIO DAY" else "WALLPAPER DAY",
-                fontSize = 8.sp, letterSpacing = 1.sp,
-                fontWeight = FontWeight.Bold, color = badgeColor
-            )
 
             if (day.slotCount == 0) {
                 // Today's 3 uploads already done
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(MintGreen.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MintGreen, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MintGreen, modifier = Modifier.size(11.dp))
                     Text(
-                        "All Uploads Done! 🎉",
-                        style = MaterialTheme.typography.labelSmall,
+                        "All Done! 🎉",
+                        fontSize = 9.sp,
                         color = MintGreen, fontWeight = FontWeight.Bold
                     )
                 }
@@ -409,25 +382,15 @@ private fun SlotItemRow(item: QueueItem) {
     val isAudio = item.isAudio
     val tint = if (isAudio) Violet else SkyBlue
     Row(
-        Modifier
-            .fillMaxWidth()
-            .background(tint.copy(alpha = 0.10f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Box(
-            Modifier.size(18.dp).background(tint.copy(alpha = 0.18f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (isAudio) Icons.Filled.MusicNote else Icons.Filled.CameraAlt,
-                contentDescription = null, tint = tint, modifier = Modifier.size(11.dp)
-            )
-        }
+        Box(Modifier.size(5.dp).background(tint, CircleShape))
         Text(
             item.title?.trim()?.takeIf { it.isNotBlank() } ?: item.name ?: "Unnamed",
-            style = MaterialTheme.typography.labelSmall,
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
             maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium
         )
     }
@@ -436,14 +399,11 @@ private fun SlotItemRow(item: QueueItem) {
 @Composable
 private fun EmptySlotRow() {
     Row(
-        Modifier
-            .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Text("+", color = TextMuted, style = MaterialTheme.typography.labelSmall)
-        Text("Empty slot", color = TextMuted, style = MaterialTheme.typography.labelSmall)
+        Box(Modifier.size(5.dp).border(1.dp, TextMuted.copy(alpha = 0.6f), CircleShape))
+        Text("Empty", fontSize = 9.sp, color = TextMuted.copy(alpha = 0.8f))
     }
 }

@@ -27,7 +27,7 @@ class StableAudioAuth(private val settings: SettingsStore) {
         const val AUTH0_LOGOUT_URL = "https://login.stableaudio.com/v2/logout"
 
         /** How long to wait for token extraction (ms) */
-        private const val TOKEN_WAIT_TIMEOUT = 45_000L
+        private const val TOKEN_WAIT_TIMEOUT = 90_000L
         /** How long to wait for page load (ms) */
         private const val PAGE_LOAD_TIMEOUT = 30_000L
         /** Poll interval for token check (ms) */
@@ -268,7 +268,7 @@ class StableAudioAuth(private val settings: SettingsStore) {
             delay(2000)
 
             // Step 2: Check current state
-            val state = waitAndEvaluate(webView, JS_CHECK_STATE, timeout = 20_000L)
+            val state = waitAndEvaluate(webView, JS_CHECK_STATE, timeout = 40_000L)
 
             when (state) {
                 "TOKEN_FOUND", "LOGGED_IN" -> {
@@ -285,21 +285,21 @@ class StableAudioAuth(private val settings: SettingsStore) {
                 else -> {
                     onStatus("Waiting for page to load...")
                     // Try again with longer wait
-                    val retryState = waitAndEvaluate(webView, JS_CHECK_STATE, timeout = 15_000L)
+                    val retryState = waitAndEvaluate(webView, JS_CHECK_STATE, timeout = 30_000L)
                     if (retryState == "SIGNUP_FOUND") {
                         evaluateJs(webView, JS_CLICK_SIGNUP)
                         delay(2000)
                     } else {
-                        throw Exception("Could not find Sign Up button on Stable Audio.")
+                        throw Exception("Could not find Sign Up button on Stable Audio. Slow internet or CAPTCHA — try again (Wi-Fi recommended).")
                     }
                 }
             }
 
             // Step 3: Wait for Auth0 form
             onStatus("Waiting for registration form...")
-            val formReady = waitAndEvaluate(webView, JS_CHECK_AUTH0_FORM, timeout = 20_000L)
+            val formReady = waitAndEvaluate(webView, JS_CHECK_AUTH0_FORM, timeout = 40_000L)
             if (formReady != "true") {
-                throw Exception("Auth0 registration form did not load within 20 seconds.")
+                throw Exception("Auth0 registration form did not load within 40 seconds. Check your internet and try again.")
             }
 
             // Step 4: Generate credentials and fill form
@@ -359,14 +359,14 @@ class StableAudioAuth(private val settings: SettingsStore) {
 
         // Navigate to Auth0 logout endpoint
         webView.loadUrl(AUTH0_LOGOUT_URL)
-        delay(3000)
+        delay(5000)
 
         // Clear all storage
         evaluateJs(webView, JS_CLEAR_STORAGE)
 
         // Navigate back to Stable Audio
         webView.loadUrl(STABLE_AUDIO_URL)
-        delay(3000)
+        delay(5000)
 
         // Clear again after fresh load
         evaluateJs(webView, JS_CLEAR_STORAGE)
@@ -380,7 +380,7 @@ class StableAudioAuth(private val settings: SettingsStore) {
     private suspend fun clickSignupAfterLogout(webView: WebView, onStatus: (String) -> Unit) {
         onStatus("Looking for Sign Up button...")
         val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < 15_000) {
+        while (System.currentTimeMillis() - start < 45_000) {
             val clicked = evaluateJs(webView, JS_CLICK_SIGNUP)
             if (clicked == "true") {
                 onStatus("Sign Up clicked after logout.")
@@ -389,7 +389,7 @@ class StableAudioAuth(private val settings: SettingsStore) {
             }
             delay(500)
         }
-        throw Exception("Could not find Sign Up button after logout.")
+        throw Exception("Sign Up button not found after logout (waited 45s). Slow internet or CAPTCHA — try again on Wi-Fi.")
     }
 
     /**
