@@ -287,6 +287,38 @@ fun AiStudioScreen(vm: MainViewModel) {
                         SettingInput("Duration (s) · 1-180", "${duration.toInt()}", Modifier.fillMaxWidth()) {
                             it.toFloatOrNull()?.let { v -> duration = v.coerceIn(1f, 180f) }
                         }
+                        // Quick duration preset buttons
+                        val allPresets = listOf(3f, 5f, 10f, 15f, 20f, 30f)
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            allPresets.chunked(3).forEach { rowPresets ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowPresets.forEach { preset ->
+                                        val isSelected = duration == preset
+                                        OutlinedButton(
+                                            onClick = { duration = preset },
+                                            modifier = Modifier.weight(1f).height(36.dp),
+                                            shape = RoundedCornerShape(10.dp),
+                                            colors = ButtonDefaults.outlinedButtonColors(
+                                                containerColor = if (isSelected) Violet.copy(alpha = 0.2f) else Color.Transparent,
+                                                contentColor = if (isSelected) Color.White else TextMuted
+                                            ),
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                1.dp,
+                                                if (isSelected) Violet else Color.White.copy(alpha = 0.12f)
+                                            ),
+                                            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
+                                        ) {
+                                            Text("${preset.toInt()}s", style = MaterialTheme.typography.labelMedium, fontWeight = if(isSelected) FontWeight.Bold else FontWeight.Medium)
+                                        }
+                                    }
+                                    // Make sure rows with fewer items keep correct sizing
+                                    repeat(3 - rowPresets.size) { Spacer(modifier = Modifier.weight(1f)) }
+                                }
+                            }
+                        }
                         // Gain, Silence, Pad — compact 3-column row
                         Row(
                             modifier = Modifier.fillMaxWidth(),

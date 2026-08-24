@@ -192,7 +192,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addGeneratedToQueue(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg", onDone: (String?) -> Unit) {
         viewModelScope.launch {
-            onDone(addGeneratedToQueueSync(audioBytes, prompt, durationSec, mime))
+            val meta = try {
+                val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
+                gemini.genMeta(prompt, existing)
+            } catch (e: Exception) {
+                onDone("Metadata AI failed — NOT uploaded (${e.message?.take(60) ?: "check API keys"})")
+                return@launch
+            }
+            onDone(addGeneratedToQueueSync(audioBytes, meta, durationSec, mime))
         }
     }
 
@@ -216,8 +223,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 return@launch
             }
             prompts.forEachIndexed { i, prompt ->
-                updateBulk(i, "Composing")
                 try {
+                    updateBulk(i, "Generating metadata...")
+                    val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
+                    val meta = try {
+                        gemini.genMeta(prompt, existing)
+                    } catch (e: Exception) {
+                        updateBulk(i, "Failed: Metadata AI failed (${e.message?.take(60) ?: "check API keys"})")
+                        return@forEachIndexed
+                    }
+
+                    updateBulk(i, "Composing")
                     var bytes = generateRingtone(prompt, lengthSeconds) { }
                     var mime = "audio/mpeg"
                     var actualDuration = lengthSeconds.toDouble()
@@ -228,8 +244,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                         mime = result.mimeType
                         result.durationSec?.let { d -> actualDuration = d }
                     }
-                    updateBulk(i, "Generating metadata...")
-                    val err = addGeneratedToQueueSync(bytes, prompt, actualDuration, mime)
+                    updateBulk(i, "Uploading...")
+                    val err = addGeneratedToQueueSync(bytes, meta, actualDuration, mime)
                     updateBulk(i, if (err == null) "Done" else "Failed: $err")
                 } catch (e: StableAuthRequiredException) {
                     updateBulk(i, "Failed: Auth required")
@@ -247,13 +263,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * NOT uploaded — junk metadata (raw-prompt titles, wrong category) risks a
      * Zedge account suspension. The bulk list shows a clear Failed status instead.
      */
-    private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, prompt: String, durationSec: Double, mime: String = "audio/mpeg"): String? {
-        val meta = try {
-            val existing = FirebaseRepo.getExistingTitles(_activeProject.value)
-            gemini.genMeta(prompt, existing)
-        } catch (e: Exception) {
-            return "Metadata AI failed — NOT uploaded (${e.message?.take(60) ?: "check API keys"})"
-        }
+    private suspend fun addGeneratedToQueueSync(audioBytes: ByteArray, meta: MetaData, durationSec: Double, mime: String = "audio/mpeg"): String? {
         return try {
             val ext = if (mime.contains("wav")) ".wav" else ".mp3"
             val fileName = meta.title.replace(Regex("[^a-zA-Z0-9 ]"), "").trim()
