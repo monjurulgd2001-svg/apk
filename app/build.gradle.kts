@@ -12,26 +12,14 @@ android {
         applicationId = "com.zedge.automation"
         minSdk = 21
         targetSdk = 35
-        versionCode = 3
-        versionName = "3.5.1"
-    }
-
-    // v3.5: fixed signing key committed with the project so every CI build
-    // installs as an UPDATE over the previous one (no uninstall needed).
-    signingConfigs {
-        create("release") {
-            storeFile = file("release.keystore")
-            storePassword = "zedge2026"
-            keyAlias = "zedge"
-            keyPassword = "zedge2026"
-        }
+        versionCode = 1
+        versionName = "3.3.1"
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
