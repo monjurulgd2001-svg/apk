@@ -32,6 +32,33 @@ android {
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
 
+// Auto-fix: if both .png and .webp exist for the same resource (e.g. launcher
+// icons added twice), delete the .png before resource merging — otherwise the
+// build fails with "Duplicate resources".
+val removeDuplicateRes = tasks.register("removeDuplicateRes") {
+    doFirst {
+        val resDir = file("src/main/res")
+        if (resDir.exists()) {
+            resDir.walkTopDown()
+                .filter { it.isFile && it.extension.equals("webp", ignoreCase = true) }
+                .forEach { webp ->
+                    val png = File(webp.parentFile, webp.nameWithoutExtension + ".png")
+                    if (png.exists()) {
+                        println("Removing duplicate resource: ${png.path}")
+                        png.delete()
+                    }
+                }
+        }
+        // local.properties from another machine breaks SDK resolution on CI
+        val localProps = rootProject.file("local.properties")
+        if (localProps.exists() && System.getenv("CI") == "true") {
+            localProps.delete()
+        }
+    }
+}
+
+tasks.named("preBuild") { dependsOn(removeDuplicateRes) }
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
     implementation(composeBom)
