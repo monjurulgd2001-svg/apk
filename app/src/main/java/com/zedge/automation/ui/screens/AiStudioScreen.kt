@@ -770,8 +770,8 @@ private fun ColorfulStatusCard(
         Box(
             Modifier
                 .fillMaxWidth()
-                .background(gradient.copy(alpha = 0.15f))
-                .border(1.dp, gradient, RoundedCornerShape(14.dp))
+                .background(gradient)
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
                 .padding(horizontal = 10.dp, vertical = 10.dp)
         ) {
             Row(
