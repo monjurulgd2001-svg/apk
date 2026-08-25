@@ -36,6 +36,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -74,6 +75,7 @@ private val CardBg2 = Color(0xFF1E2A3A)
 private val AccentPink = Color(0xFFE8607A)
 
 @SuppressLint("SetJavaScriptEnabled")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiStudioScreen(vm: MainViewModel) {
     val bulkStatuses by vm.bulkStatuses.collectAsState()
