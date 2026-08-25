@@ -69,3 +69,78 @@ app/src/main/java/com/zedge/automation/
 
 - ওয়েবের **Audio Editor** (waveform trim/volume) ও **Auto-Create Account browser extension** ফিচার দুটি ব্রাউজার-নির্ভর, তাই মোবাইলে বেসিক প্লেব্যাক রাখা হয়েছে; বাকি সব ফ্লো এক।
 - ভবিষ্যতে ওয়েবে Firebase config বদলালে শুধু `AppConfig.kt`-এ একই ভ্যালু বসালেই হবে।
+
+---
+
+## 🔒 v3.1 — Metadata Fix
+
+Bulk/AI ringtone metadata generation was rewritten for Zedge account safety:
+
+- **One strict-JSON AI call** (instead of 4 separate free-text calls) — title, tags, category & description come together; ~4x fewer rate-limit (429) failures. Temperature lowered to 0.4 in JSON mode for reliable instruction-following.
+- **Hard validation, no silent junk**: if a valid title/tags/category cannot be produced, the item is **NOT uploaded** — the bulk list shows `Failed: Metadata AI failed — NOT uploaded`. (Previously the raw prompt text silently became the title, category fell back to OTHER, and the item still showed "Done".)
+- **Case/format-insensitive category matching** — answers like `Electronica`, `HIP HOP`, `hip_hop.` now map to the correct category instead of OTHER.
+- **Title cleanup**: strips `Title:` prefixes, markdown (`**`), bpm mentions and the word "ringtone"; duplicate titles get a natural suffix (Vibes/Tone/Mix/...) instead of 3 random letters.
+- **New “Generating metadata...” step** shown in the bulk status list (also counted as a running state so the Generate button stays locked).
+- **Accurate duration**: after Auto Trim + Boost, the real post-trim duration is saved instead of the requested length.
+- Mistral fallback now also uses strict JSON mode (`response_format: json_object`).
+
+## 📅 v3.2 — Schedule Planner + Duration
+
+- **Duration range is now 1–180 seconds** in AI Studio (was 5–180); label shows the valid range.
+- **Schedule Calendar completely rebuilt** as a 1:1 port of the web dashboard's "Publishing Layout Planner":
+  - Stats legend: Active DB · Remaining Today · Uploaded Today (x/3) · Audio Queue · Wallpapers
+  - Days alternate AUDIO / WALLPAPER types with 3 upload slots per day
+  - Today's day type & remaining slots read live from Firebase `uploadState` (lastUploadDate / uploadDayType / totalUploadsToday) — same `M/d/yyyy` Dhaka date key as the dashboard
+  - Queued items (status = queued, oldest first) are allocated into future slots: audio → AUDIO days, wallpapers → WALLPAPER days
+  - Planner extends past 28 days until every queued item has a slot; 28 days per page with Prev/Next pagination
+  - "All Uploads Done! 🎉" state when today's 3 uploads are complete
+  - Previous screen only showed a history of when items were created — it did not reflect the real upload schedule.
+
+## v3.3 — Back Button Handling (2026-08-24)
+
+- **Bulk-run exit guard**: pressing back on Home during an active bulk run now shows a confirm dialog ("Bulk generation running!") instead of instantly closing the app. "Exit anyway" stops the run cleanly via stopBulkGeneration() before exiting; "Keep running" dismisses.
+- **Double-press to exit**: on Home, first back press shows "Press back again to exit" toast (2s window) — no more accidental exits.
+- **Stable Audio login smart back**: system back and the toolbar arrow show a "Login in progress" toast while token extraction is busy; normal back otherwise.
+- **Predictive back gesture**: android:enableOnBackInvokedCallback="true" added to the manifest (Android 13+ animations).
+- Dialogs (queue edit, logout confirm) already close on back by default (Compose AlertDialog) — unchanged.
+
+## v3.3.1 — Build self-heal for duplicate launcher icons (2026-08-24)
+
+- app/build.gradle.kts now auto-deletes stray mipmap-*/ic_launcher*.png duplicates before every build (preBuild Delete task) and also ignores them via androidResources.ignoreAssetsPattern — fixes "Duplicate resources" CI failures with zero manual file deletion.
+- local.properties removed from the project (machine-specific Windows SDK path; Android Studio regenerates it locally, CI uses ANDROID_HOME).
+- gradle.properties: android.suppressUnsupportedCompileSdk=35 added to silence the AGP 8.5.2 / compileSdk 35 warning.
+- versionName bumped to 3.3.1.
+
+## v3.3.2 — Slow-network hardening for Stable Audio auto-create (2026-08-24)
+
+- StableAudioAuth.kt timeouts increased for slow connections: Sign Up search after logout 15s → 45s, session state check 20s → 40s (retry 15s → 30s), Auth0 form wait 20s → 40s, token wait 45s → 90s, logout page-settle delays 3s → 5s.
+- Clearer error messages that mention slow internet / CAPTCHA and suggest retrying on Wi-Fi.
+
+## v3.3.3 — Compact schedule calendar cards (2026-08-24)
+
+- ScheduleScreen day cards redesigned to match the rest of the app: compact 2-column vertical grid (no horizontal scrolling), one-line header ("24 AUG · MON" + tiny day-type icon), slim dot+title slot rows, minimal "Empty" placeholders, smaller "All Done!" state. Cards are ~60% shorter; stats, header, and pagination unchanged.
+
+## v3.4 — Unique title words / duplicate শব্দ ফিক্স (2026-08-25)
+- সমস্যা: "Earthen Breeze" + "Tropical Breeze" — আলাদা টাইটেলে একই শব্দ repeat হচ্ছিল (আগে শুধু হুবহু same title আটকানো হতো)।
+- `GeminiClient.kt`-এ নতুন `bannedWords()`: সাম্প্রতিক ৪০টা existing title-এর সব significant শব্দ (৩+ অক্ষর, stopword বাদ) এখন banned list-এ যায়।
+- Gemini prompt-এ এখন explicit **BANNED WORDS** লিস্ট পাঠানো হয় — ringtone (`genMeta`) আর wallpaper (`analyzeImage`) দুই path-এই।
+- Deterministic guard `swapBannedWords()`: AI তবুও কোনো ব্যবহৃত শব্দ দিলে সেটা fresh শব্দে (Drift, Glow, Echo, Pulse, Aura, Nova, Haze, Spark...) auto-swap হয়ে যায় — duplicate শব্দ আর queue-তে ঢুকতে পারে না।
+- শুধু `data/GeminiClient.kt` বদলেছে — অন্য কোনো ফাইল/behavior অপরিবর্তিত।
+
+## v3.5 — Speed optimization / গতি অপ্টিমাইজেশন (2026-08-25)
+কোনো feature/function বদলায়নি — শুধু গতি।
+- **Release build**: GitHub Actions এখন `assembleRelease` বানায় (আগে debug ছিল) — Compose debug overhead বাদ, পুরো অ্যাপ ২-৫ গুণ fast। APK artifact: `ZedgeAutomation-release-apk`।
+- **Fixed signing key** (`app/release.keystore` committed): প্রতি CI build একই signature — আগের install-এর উপর সরাসরি update বসে, uninstall লাগে না। (প্রথমবার শুধু পুরোনো debug অ্যাপ uninstall করে নিতে হবে।)
+- **Firebase offline persistence + keepSynced**: অ্যাপ খোলামাত্র disk cache থেকে queue/stats সাথে সাথে দেখায়, নেটের জন্য বসে থাকে না; ডাটা পেছনে live-sync হয়। Bulk generation-এর title-check-ও cache থেকে fast হয়।
+- **Compose list অপ্টিমাইজেশন**: AI Studio bulk list-এ stable key (itemsIndexed) — প্রতি tick-এ পুরো লিস্ট আর re-render হয় না; Home recent list-এ key; Distribute-এ filter hoist + key; Schedule-এ pageDays/chunked এখন remember-এ — scroll আর live-update smooth।
+- versionCode 2, versionName 3.5।
+
+## v3.5.1 — Colorful AI Studio / রঙিন রিংটোন জেনারেটর (2026-08-25)
+শুধু চেহারা — কোনো feature/function বদলায়নি।
+- Title-এ pink→violet→blue gradient রং + রামধনু accent bar
+- Stable Audio কার্ডে violet→blue gradient backdrop; Auto-Create বাটনে violet→pink gradient
+- Main কার্ডের উপরে rainbow strip; prompt box-এ violet accent
+- Duration/Gain/Silence/Pad — প্রতিটা field-এর নিজস্ব রং (pink/orange/blue/mint)
+- Generate All বাটনে pink→violet→blue gradient; Stop বাটন লাল; progress bar pink
+- Auto-trim রো pink→violet soft gradient; status cardগুলোতে status অনুযায়ী রঙিন tint (সবুজ/কমলা/লাল)
+- versionCode 3, versionName 3.5.1

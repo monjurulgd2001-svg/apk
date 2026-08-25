@@ -3,6 +3,7 @@ package com.zedge.automation.data
 import android.content.Context
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
+import com.google.firebase.database.FirebaseDatabase
 import com.zedge.automation.config.AppConfig
 
 /**
@@ -31,7 +32,15 @@ object FirebaseInit {
                     .setGcmSenderId(cfg.messagingSenderId)
                     .build()
                 if (FirebaseApp.getApps(ctx).none { it.name == key }) {
-                    FirebaseApp.initializeApp(ctx, options, key)
+                    val app = FirebaseApp.initializeApp(ctx, options, key)
+                    // v3.5: offline cache — screens render instantly from disk,
+                    // then live-sync in the background. Must run before any
+                    // getReference() is used on this database instance.
+                    try {
+                        val fdb = FirebaseDatabase.getInstance(app)
+                        fdb.setPersistenceEnabled(true)
+                        fdb.getReference(AppConfig.QUEUE_PATH).keepSynced(true)
+                    } catch (_: Exception) { /* never crash on init */ }
                 }
                 // Also register a default app (some SDK internals expect one).
                 if (FirebaseApp.getApps(ctx).none { it.name == FirebaseApp.DEFAULT_APP_NAME }) {

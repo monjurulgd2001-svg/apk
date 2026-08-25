@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +39,8 @@ import com.zedge.automation.viewmodel.MainViewModel
 fun DistributeScreen(vm: MainViewModel) {
     val progress by vm.progress.collectAsState()
     val items by vm.queueItems.collectAsState()
+    // v3.5: compute once per queue update instead of on every recomposition.
+    val distributed = remember(items) { items.filter { it.distributedTo != null }.take(20) }
 
     val pickImages = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         if (uris.isNotEmpty()) vm.distributeImages(uris)
@@ -78,7 +81,7 @@ fun DistributeScreen(vm: MainViewModel) {
         item {
             Text("Recently distributed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        items(items.filter { it.distributedTo != null }.take(20)) { item ->
+        items(distributed, key = { it.id }) { item ->
             Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(Modifier.padding(12.dp)) {
                     Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)

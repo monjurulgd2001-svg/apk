@@ -12,14 +12,26 @@ android {
         applicationId = "com.zedge.automation"
         minSdk = 21
         targetSdk = 35
-        versionCode = 1
-        versionName = "3.0"
+        versionCode = 3
+        versionName = "3.5.1"
+    }
+
+    // v3.5: fixed signing key committed with the project so every CI build
+    // installs as an UPDATE over the previous one (no uninstall needed).
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "zedge2026"
+            keyAlias = "zedge"
+            keyPassword = "zedge2026"
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -30,34 +42,14 @@ android {
     buildFeatures { compose = true }
     lint { abortOnError = false }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
-}
 
-// Auto-fix: if both .png and .webp exist for the same resource (e.g. launcher
-// icons added twice), delete the .png before resource merging — otherwise the
-// build fails with "Duplicate resources".
-val removeDuplicateRes = tasks.register("removeDuplicateRes") {
-    doFirst {
-        val resDir = file("src/main/res")
-        if (resDir.exists()) {
-            resDir.walkTopDown()
-                .filter { it.isFile && it.extension.equals("webp", ignoreCase = true) }
-                .forEach { webp ->
-                    val png = File(webp.parentFile, webp.nameWithoutExtension + ".png")
-                    if (png.exists()) {
-                        println("Removing duplicate resource: ${png.path}")
-                        png.delete()
-                    }
-                }
-        }
-        // local.properties from another machine breaks SDK resolution on CI
-        val localProps = rootProject.file("local.properties")
-        if (localProps.exists() && System.getenv("CI") == "true") {
-            localProps.delete()
-        }
+    // Self-heal: the launcher icons ship as .webp. If stray .png copies with
+    // the same resource names sneak into the repo, the resource merger fails
+    // with "Duplicate resources". Ignore them here (default AAPT pattern kept).
+    androidResources {
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:!ic_launcher.png:!ic_launcher_round.png:!ic_launcher_foreground.png"
     }
 }
-
-tasks.named("preBuild") { dependsOn(removeDuplicateRes) }
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.09.03")
@@ -83,4 +75,22 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+// ── Self-heal: auto-remove duplicate launcher PNGs before every build ──
+// The project's launcher icons are .webp. Stray .png copies of the same
+// resource names (added to the repo by mistake) break mergeResources with
+// "Duplicate resources". This deletes them automatically at build time,
+// so no manual cleanup is ever needed.
+val removeDuplicateLauncherPngs by tasks.registering(Delete::class) {
+    delete(
+        fileTree("src/main/res") {
+            include("mipmap-*/ic_launcher.png")
+            include("mipmap-*/ic_launcher_round.png")
+            include("mipmap-*/ic_launcher_foreground.png")
+        }
+    )
+}
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(removeDuplicateLauncherPngs)
 }
