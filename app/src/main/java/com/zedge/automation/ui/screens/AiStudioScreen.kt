@@ -36,6 +36,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -50,6 +52,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -86,6 +89,7 @@ fun AiStudioScreen(vm: MainViewModel) {
     var authError by remember { mutableStateOf(false) }
 
     var duration by remember { mutableFloatStateOf(30f) }
+
     var gainPercent by remember { mutableFloatStateOf(200f) }
     var silenceThreshold by remember { mutableFloatStateOf(0.02f) }
     var padMs by remember { mutableFloatStateOf(100f) }
@@ -258,8 +262,55 @@ fun AiStudioScreen(vm: MainViewModel) {
 
                     Text("Settings", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextMuted)
 
-                    SimpleSettingInput("Duration (s)", "${duration.toInt()}", Modifier.fillMaxWidth()) {
-                        it.toFloatOrNull()?.let { v -> duration = v.coerceIn(1f, 180f) }
+                    // Duration slider
+                    Column(Modifier.fillMaxWidth()) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Duration", style = MaterialTheme.typography.labelSmall, color = TextMuted)
+                            Text("${duration.toInt()}s", style = MaterialTheme.typography.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Slider(
+                            value = duration,
+                            onValueChange = { duration = it },
+                            valueRange = 2f..180f,
+                            steps = 0,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.Transparent,
+                                inactiveTrackColor = Color.Transparent
+                            ),
+                            thumb = {
+                                Box(
+                                    Modifier
+                                        .size(20.dp)
+                                        .shadow(4.dp, CircleShape)
+                                        .background(Color.White, CircleShape)
+                                )
+                            },
+                            track = { sliderState ->
+                                val fraction = (sliderState.value - 2f) / (180f - 2f)
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
+                                        .background(Color.White.copy(alpha = 0.08f))
+                                ) {
+                                    Box(
+                                        Modifier
+                                            .fillMaxWidth(fraction)
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(
+                                                Brush.horizontalGradient(
+                                                    listOf(Color(0xFF00C9A7), Color(0xFF56CCF2), Color(0xFFB8E986))
+                                                )
+                                            )
+                                    )
+                                }
+                            }
+                        )
                     }
 
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
