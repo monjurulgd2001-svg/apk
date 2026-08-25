@@ -62,21 +62,13 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.zedge.automation.data.StableAudioAuth
-import com.zedge.automation.ui.theme.MintGreen
-import com.zedge.automation.ui.theme.PrimaryPink
-import com.zedge.automation.ui.theme.SkyBlue
 import com.zedge.automation.ui.theme.TextMuted
-import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
 private val CardBg = Color(0xFF2A1F3D)
 private val CardBg2 = Color(0xFF1E2A3A)
-private val AccentPurple = Color(0xFF9B6DFF)
-private val AccentCyan = Color(0xFF56CCF2)
-private val AccentGold = Color(0xFFF2C94C)
-private val AccentCoral = Color(0xFFF2994A)
-private val AccentMint = Color(0xFF6FCF97)
+private val AccentPink = Color(0xFFE8607A)
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -112,77 +104,45 @@ fun AiStudioScreen(vm: MainViewModel) {
         Modifier.fillMaxSize().padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // ═══════════════════════════════════════════
         // ── Stable Audio Card ──
-        // ═══════════════════════════════════════════
         item {
             Card(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = CardBg),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
-                            Modifier
-                                .size(38.dp)
-                                .background(AccentPurple, CircleShape),
+                            Modifier.size(34.dp).background(Color.White.copy(alpha = 0.1f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(16.dp))
                         }
                         Column(Modifier.weight(1f)) {
-                            Text("Stable Audio", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 15.sp)
-                            Text("Music Generation Engine", color = TextMuted, fontSize = 11.sp)
+                            Text("Stable Audio", fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 14.sp)
+                            Text("Music Generation Engine", color = TextMuted, fontSize = 10.sp)
                         }
-                        Box(
-                            Modifier
-                                .background(
-                                    if (hasToken) AccentMint.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f),
-                                    RoundedCornerShape(20.dp)
-                                )
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                if (hasToken) "\u2713 Active" else "No Token",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (hasToken) AccentMint else TextMuted,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(
+                            if (hasToken) "Active" else "No Token",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (hasToken) Color(0xFF6FCF97) else TextMuted,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
 
                     if (authStatus.isNotBlank()) {
-                        Box(
-                            Modifier
-                                .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (authBusy) {
-                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), color = AccentCyan, strokeWidth = 2.dp)
-                                    Spacer(Modifier.width(6.dp))
-                                }
-                                Text(
-                                    authStatus,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = when {
-                                        authError -> AccentCoral
-                                        authSuccess -> AccentMint
-                                        else -> TextMuted
-                                    }
-                                )
-                            }
-                        }
+                        Text(
+                            authStatus,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextMuted
+                        )
                     }
 
                     Button(
@@ -208,7 +168,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                                 authBusy = false
                                 if (result.success) {
                                     authSuccess = true; hasToken = true
-                                    authStatus = "\u2713 Token synced!"
+                                    authStatus = "Token synced!"
                                 } else {
                                     authError = true
                                     authStatus = result.error ?: "Failed"
@@ -216,14 +176,11 @@ fun AiStudioScreen(vm: MainViewModel) {
                             }
                         },
                         enabled = !authBusy,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(44.dp)
-                            .shadow(4.dp, RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AccentPurple,
-                            disabledContainerColor = Color.White.copy(alpha = 0.08f)
+                            containerColor = AccentPink,
+                            disabledContainerColor = Color.White.copy(alpha = 0.06f)
                         )
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,9 +190,9 @@ fun AiStudioScreen(vm: MainViewModel) {
                             }
                             Text(
                                 if (authBusy) "Creating account..." else "Auto-Create Account & Sync Token",
-                                fontWeight = FontWeight.SemiBold,
+                                fontWeight = FontWeight.Medium,
                                 color = Color.White,
-                                fontSize = 13.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -243,49 +200,34 @@ fun AiStudioScreen(vm: MainViewModel) {
             }
         }
 
-        // ═══════════════════════════════════════════
         // ── Header ──
-        // ═══════════════════════════════════════════
         item {
             Column {
                 Text(
-                    "\uD83C\uDFB5 Bulk AI Generation",
+                    "Bulk AI Generation",
                     style = MaterialTheme.typography.headlineSmall,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
-                Spacer(Modifier.height(5.dp))
-                Box(
-                    Modifier
-                        .width(60.dp)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(PrimaryPink)
-                )
-                Spacer(Modifier.height(5.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    "One prompt per line — each one is generated, processed and queued automatically.",
+                    "One prompt per line, each one generated and queued automatically.",
                     color = TextMuted, style = MaterialTheme.typography.bodyMedium
                 )
             }
         }
 
-        // ═══════════════════════════════════════════
         // ── Main Card ──
-        // ═══════════════════════════════════════════
         item {
             Card(
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = CardBg2),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    Modifier.fillMaxWidth().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Prompt input
                     OutlinedTextField(
                         bulkPrompts, { bulkPrompts = it },
                         label = { Text("Enter prompts...") },
@@ -294,40 +236,32 @@ fun AiStudioScreen(vm: MainViewModel) {
                         },
                         modifier = Modifier.fillMaxWidth().height(120.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryPink,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                            focusedContainerColor = Color.Black.copy(alpha = 0.1f),
-                            unfocusedContainerColor = Color.Black.copy(alpha = 0.06f),
-                            cursorColor = PrimaryPink,
+                            focusedBorderColor = AccentPink.copy(alpha = 0.6f),
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                            focusedContainerColor = Color.Black.copy(alpha = 0.08f),
+                            unfocusedContainerColor = Color.Black.copy(alpha = 0.04f),
+                            cursorColor = AccentPink,
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White
                         )
                     )
 
-                    // Prompt count
                     if (promptCount > 0) {
                         Text(
                             "$promptCount prompt${if (promptCount != 1) "s" else ""} ready",
                             style = MaterialTheme.typography.bodySmall,
-                            color = AccentMint, fontWeight = FontWeight.SemiBold
+                            color = TextMuted
                         )
                     }
 
-                    // Divider
-                    Box(
-                        Modifier.fillMaxWidth().height(1.dp)
-                            .background(Color.White.copy(alpha = 0.08f))
-                    )
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.06f)))
 
-                    // Settings header
                     Text("Settings", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = TextMuted)
 
-                    // Duration
                     SimpleSettingInput("Duration (s)", "${duration.toInt()}", Modifier.fillMaxWidth()) {
                         it.toFloatOrNull()?.let { v -> duration = v.coerceIn(1f, 180f) }
                     }
 
-                    // 3 compact fields
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         SimpleSettingInput("Gain %", "${gainPercent.toInt()}", Modifier.weight(1f)) {
                             it.toFloatOrNull()?.let { v -> gainPercent = v.coerceIn(10f, 500f) }
@@ -340,28 +274,25 @@ fun AiStudioScreen(vm: MainViewModel) {
                         }
                     }
 
-                    // Auto trim toggle
                     Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.White.copy(alpha = 0.04f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Checkbox(
                             checked = autoTrimBoost,
                             onCheckedChange = { autoTrimBoost = it },
-                            colors = CheckboxDefaults.colors(checkedColor = PrimaryPink)
+                            colors = CheckboxDefaults.colors(checkedColor = AccentPink)
                         )
                         Column(Modifier.weight(1f)) {
-                            Text("Auto trim + boost", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = Color.White)
+                            Text("Auto trim + boost", style = MaterialTheme.typography.bodyMedium, color = Color.White)
                             Text("Apply gain, silence trim & padding", style = MaterialTheme.typography.labelSmall, color = TextMuted)
                         }
                     }
 
-                    // Action buttons
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
                                 val prompts = bulkPrompts.lines().map { it.trim() }.filter { it.isNotEmpty() }
@@ -369,49 +300,45 @@ fun AiStudioScreen(vm: MainViewModel) {
                                     prompts, duration.toInt(), gainPercent, silenceThreshold, padMs.toInt(), autoTrimBoost
                                 )
                             },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(50.dp)
-                                .shadow(4.dp, RoundedCornerShape(12.dp)),
-                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = PrimaryPink,
-                                disabledContainerColor = Color.White.copy(alpha = 0.08f)
+                                containerColor = AccentPink,
+                                disabledContainerColor = Color.White.copy(alpha = 0.06f)
                             ),
                             enabled = promptCount > 0 && !isRunning
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.Bolt, contentDescription = null, Modifier.size(18.dp), tint = Color.White)
-                                Spacer(Modifier.width(5.dp))
-                                Text("Generate All", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 14.sp)
+                                Icon(Icons.Filled.Bolt, contentDescription = null, Modifier.size(16.dp), tint = Color.White)
+                                Spacer(Modifier.width(4.dp))
+                                Text("Generate All", fontWeight = FontWeight.SemiBold, color = Color.White, fontSize = 13.sp)
                             }
                         }
                         OutlinedButton(
                             onClick = { vm.stopBulkGeneration() },
-                            modifier = Modifier.height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AccentCoral),
+                            modifier = Modifier.height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted),
                             enabled = isRunning
                         ) {
-                            Icon(Icons.Filled.Stop, contentDescription = null, Modifier.size(16.dp))
+                            Icon(Icons.Filled.Stop, contentDescription = null, Modifier.size(14.dp))
                         }
                     }
 
-                    // Progress bar
                     if (isRunning) {
                         val total = bulkStatuses.size
                         val progress = if (total > 0) (doneCount + failCount).toFloat() / total else 0f
                         Column {
                             LinearProgressIndicator(
                                 progress = { progress },
-                                modifier = Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(3.dp)),
-                                color = PrimaryPink,
-                                trackColor = Color.White.copy(alpha = 0.1f)
+                                modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
+                                color = AccentPink,
+                                trackColor = Color.White.copy(alpha = 0.08f)
                             )
-                            Spacer(Modifier.height(3.dp))
+                            Spacer(Modifier.height(2.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text("${doneCount + failCount}/$total", fontSize = 10.sp, color = TextMuted)
-                                Text("${(progress * 100).toInt()}%", fontSize = 10.sp, color = PrimaryPink, fontWeight = FontWeight.Bold)
+                                Text("${(progress * 100).toInt()}%", fontSize = 10.sp, color = TextMuted)
                             }
                         }
                     }
@@ -419,72 +346,49 @@ fun AiStudioScreen(vm: MainViewModel) {
             }
         }
 
-        // ═══════════════════════════════════════════
         // ── Status Summary ──
-        // ═══════════════════════════════════════════
         if (bulkStatuses.isNotEmpty()) {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatusPill("Done", doneCount, AccentMint, Icons.Filled.CheckCircle, Modifier.weight(1f))
-                    StatusPill("Running", runningCount, AccentGold, Icons.Filled.HourglassBottom, Modifier.weight(1f))
-                    StatusPill("Failed", failCount, AccentCoral, Icons.Filled.Error, Modifier.weight(1f))
+                    MiniPill("$doneCount Done", Modifier.weight(1f))
+                    MiniPill("$runningCount Running", Modifier.weight(1f))
+                    MiniPill("$failCount Failed", Modifier.weight(1f))
                 }
             }
         }
 
-        // ═══════════════════════════════════════════
         // ── Status List ──
-        // ═══════════════════════════════════════════
         itemsIndexed(bulkStatuses, key = { i, _ -> i }) { _, s ->
-            val isWorking = s.status == "Composing" || s.status == "Processing audio..." || s.status == "Generating metadata..."
             val isDone = s.status.startsWith("Done")
             val isFailed = s.status.startsWith("Failed")
 
-            val statusColor = when {
-                isDone -> AccentMint
-                isFailed -> AccentCoral
-                isWorking -> AccentGold
-                else -> TextMuted
-            }
-
             Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.04f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
-                    Modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth(),
+                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp).fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        Modifier
-                            .size(30.dp)
-                            .background(statusColor.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            when {
-                                isDone -> Icons.Filled.CheckCircle
-                                isFailed -> Icons.Filled.Error
-                                isWorking -> Icons.Filled.MusicNote
-                                else -> Icons.Filled.HourglassBottom
-                            },
-                            contentDescription = null,
-                            tint = statusColor,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(s.prompt, maxLines = 1, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = Color.White)
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        s.status, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelSmall,
-                        color = statusColor
+                    Icon(
+                        when {
+                            isDone -> Icons.Filled.CheckCircle
+                            isFailed -> Icons.Filled.Error
+                            else -> Icons.Filled.MusicNote
+                        },
+                        contentDescription = null,
+                        tint = when {
+                            isDone -> Color(0xFF6FCF97)
+                            isFailed -> Color(0xFFF2994A)
+                            else -> TextMuted
+                        },
+                        modifier = Modifier.size(14.dp)
                     )
+                    Spacer(Modifier.width(8.dp))
+                    Text(s.prompt, maxLines = 1, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f), color = Color.White)
+                    Spacer(Modifier.width(6.dp))
+                    Text(s.status, style = MaterialTheme.typography.labelSmall, color = TextMuted)
                 }
             }
         }
@@ -524,15 +428,14 @@ fun AiStudioScreen(vm: MainViewModel) {
         )
     }
 
-    } // end Box
+    }
 }
 
-// ── Simple Setting Input ──
 @Composable
 private fun SimpleSettingInput(label: String, value: String, modifier: Modifier, onValueChange: (String) -> Unit) {
     Column(modifier) {
-        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(3.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        Spacer(Modifier.height(2.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -540,11 +443,11 @@ private fun SimpleSettingInput(label: String, value: String, modifier: Modifier,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Color.White),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = PrimaryPink.copy(alpha = 0.6f),
-                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                focusedContainerColor = Color.Black.copy(alpha = 0.08f),
-                unfocusedContainerColor = Color.Black.copy(alpha = 0.04f),
-                cursorColor = PrimaryPink,
+                focusedBorderColor = AccentPink.copy(alpha = 0.4f),
+                unfocusedBorderColor = Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.Black.copy(alpha = 0.06f),
+                unfocusedContainerColor = Color.Black.copy(alpha = 0.03f),
+                cursorColor = AccentPink,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White
             )
@@ -552,23 +455,16 @@ private fun SimpleSettingInput(label: String, value: String, modifier: Modifier,
     }
 }
 
-// ── Status Pill ──
 @Composable
-private fun StatusPill(label: String, count: Int, color: Color, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.1f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
-        Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(14.dp))
-            Text("$count", fontWeight = FontWeight.Bold, color = color, style = MaterialTheme.typography.bodyMedium)
-            Text(label, color = color.copy(alpha = 0.7f), style = MaterialTheme.typography.labelSmall)
-        }
-    }
+private fun MiniPill(text: String, modifier: Modifier) {
+    Text(
+        text,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = TextMuted,
+        fontWeight = FontWeight.Medium
+    )
 }
