@@ -29,7 +29,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -37,7 +36,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,8 +50,6 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.zedge.automation.data.MetaData
 import com.zedge.automation.ui.AudioPlayer
-import com.zedge.automation.ui.AudioProgressBar
-import com.zedge.automation.ui.AudioProgressPoller
 import com.zedge.automation.ui.WallpaperPreviewDialog
 import com.zedge.automation.data.QueueItem
 import com.zedge.automation.ui.theme.MintGreen
@@ -64,11 +60,9 @@ import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UploadQueueScreen(vm: MainViewModel) {
     val items by vm.queueItems.collectAsState()
-    val isRefreshing by vm.isRefreshing.collectAsState()
     val progress by vm.progress.collectAsState()
 
     // Optional manual metadata (same as web: manual entries win over AI)
@@ -88,53 +82,45 @@ fun UploadQueueScreen(vm: MainViewModel) {
         }
     }
 
-    // Single poller drives all progress bars on this screen
-    AudioProgressPoller()
-
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = { vm.refresh() }
-    ) {
-        LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                Text("☁️ Upload Queue", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text("Wallpaper (JPEG/PNG) অথবা Ringtone (MP3) আপলোড করুন — Gemini AI অটো-মেটাডাটা সহ", color = TextMuted, style = MaterialTheme.typography.bodySmall)
-            }
-            item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = { showMetaForm = !showMetaForm }) {
-                            Text(if (showMetaForm) "Hide manual metadata ▲" else "Manual metadata (optional) ▼")
+    LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item {
+            Text("\u2601\uFE0F Upload Queue", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text("Wallpaper (JPEG/PNG) অথবা Ringtone (MP3) আপলোড করুন — Gemini AI অটো-মেটাডাটা সহ", color = TextMuted, style = MaterialTheme.typography.bodySmall)
+        }
+        item {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { showMetaForm = !showMetaForm }) {
+                        Text(if (showMetaForm) "Hide manual metadata ▲" else "Manual metadata (optional) ▼")
+                    }
+                    if (showMetaForm) {
+                        OutlinedTextField(title, { title = it.take(50) }, label = { Text("Title (${title.length}/50)") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(tags, { tags = it }, label = { Text("Tags (comma separated, max 10)") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(description, { description = it.take(200) }, label = { Text("Description (${description.length}/200)") }, modifier = Modifier.fillMaxWidth())
+                    }
+                    Button(
+                        onClick = { pickFiles.launch("*/*") },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryPink)
+                    ) { Text("Choose Files", fontWeight = FontWeight.SemiBold) }
+                    if (progress.message.isNotBlank()) {
+                        if (progress.total > 0 && progress.current < progress.total) {
+                            LinearProgressIndicator(
+                                progress = { progress.current.toFloat() / progress.total },
+                                modifier = Modifier.fillMaxWidth(), color = SkyBlue
+                            )
                         }
-                        if (showMetaForm) {
-                            OutlinedTextField(title, { title = it.take(50) }, label = { Text("Title (${title.length}/50)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(tags, { tags = it }, label = { Text("Tags (comma separated, max 10)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(category, { category = it }, label = { Text("Category") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(description, { description = it.take(200) }, label = { Text("Description (${description.length}/200)") }, modifier = Modifier.fillMaxWidth())
-                        }
-                        Button(
-                            onClick = { pickFiles.launch("*/*") },
-                            modifier = Modifier.fillMaxWidth().height(50.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryPink)
-                        ) { Text("Choose Files", fontWeight = FontWeight.SemiBold) }
-                        if (progress.message.isNotBlank()) {
-                            if (progress.total > 0 && progress.current < progress.total) {
-                                LinearProgressIndicator(
-                                    progress = { progress.current.toFloat() / progress.total },
-                                    modifier = Modifier.fillMaxWidth(), color = SkyBlue
-                                )
-                            }
-                            Text(progress.message, style = MaterialTheme.typography.bodySmall,
-                                color = if (progress.error) MaterialTheme.colorScheme.error else TextMuted)
-                        }
+                        Text(progress.message, style = MaterialTheme.typography.bodySmall,
+                            color = if (progress.error) MaterialTheme.colorScheme.error else TextMuted)
                     }
                 }
             }
-            item { Text("Queue (${items.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
-            items(items, key = { it.id }) { item ->
-                QueueItemCard(item, onEdit = { editItem = item }, onDelete = { deleteConfirm = item }, onPreview = { previewItem = item })
-            }
+        }
+        item { Text("Queue (${items.size})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold) }
+        items(items, key = { it.id }) { item ->
+            QueueItemCard(item, onEdit = { editItem = item }, onDelete = { deleteConfirm = item }, onPreview = { previewItem = item })
         }
     }
 
@@ -188,50 +174,44 @@ fun UploadQueueScreen(vm: MainViewModel) {
 
 @Composable
 private fun QueueItemCard(item: QueueItem, onEdit: () -> Unit, onDelete: () -> Unit, onPreview: () -> Unit) {
-    val isPlaying = AudioPlayer.playingId == item.id
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = item.fileUrl, contentDescription = null,
-                        modifier = Modifier.size(52.dp).background(Color(0xFF201A1C), RoundedCornerShape(12.dp)).clickable { onPreview() }
-                    )
-                } else {
-                    Icon(
-                        if (item.isAudio) { if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow } else Icons.Filled.Image,
-                        contentDescription = null,
-                        tint = if (item.isAudio) { if (isPlaying) PrimaryPink else Violet } else SkyBlue,
-                        modifier = Modifier.size(40.dp).padding(2.dp).clickable(enabled = item.isAudio) { AudioPlayer.toggle(item.id, item.fileUrl) }
-                    )
-                }
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)
-                    Text(
-                        "${item.category ?: "OTHER"} · ${formatBytes(item.size)}" +
-                            (if (item.isAudio && item.duration > 0) " · ${item.duration.toInt()}s" else ""),
-                        style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1
-                    )
-                    val status = item.status ?: "queued"
-                    Text(
-                        status.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when (status) {
-                            "queued" -> PastelOrange
-                            "uploaded", "done", "published" -> MintGreen
-                            else -> TextMuted
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, "Edit", tint = SkyBlue) }
-                IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Delete", tint = MaterialTheme.colorScheme.error) }
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = item.fileUrl, contentDescription = null,
+                    modifier = Modifier.size(52.dp).background(Color(0xFF201A1C), RoundedCornerShape(12.dp)).clickable { onPreview() }
+                )
+            } else {
+                val isPlaying = AudioPlayer.playingId == item.id
+                Icon(
+                    if (item.isAudio) { if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow } else Icons.Filled.Image,
+                    contentDescription = null,
+                    tint = if (item.isAudio) { if (isPlaying) PrimaryPink else Violet } else SkyBlue,
+                    modifier = Modifier.size(40.dp).padding(2.dp).clickable(enabled = item.isAudio) { AudioPlayer.toggle(item.id, item.fileUrl) }
+                )
             }
-            // Progress bar — only visible while this item is playing
-            if (item.isAudio) {
-                AudioProgressBar(itemId = item.id, modifier = Modifier.padding(horizontal = 4.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)
+                Text(
+                    "${item.category ?: "OTHER"} · ${formatBytes(item.size)}" +
+                        (if (item.isAudio && item.duration > 0) " · ${item.duration.toInt()}s" else ""),
+                    style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 1
+                )
+                val status = item.status ?: "queued"
+                Text(
+                    status.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when (status) {
+                        "queued" -> PastelOrange
+                        "uploaded", "done", "published" -> MintGreen
+                        else -> TextMuted
+                    },
+                    fontWeight = FontWeight.Bold
+                )
             }
+            IconButton(onClick = onEdit) { Icon(Icons.Filled.Edit, "Edit", tint = SkyBlue) }
+            IconButton(onClick = onDelete) { Icon(Icons.Filled.Delete, "Delete", tint = MaterialTheme.colorScheme.error) }
         }
     }
 }

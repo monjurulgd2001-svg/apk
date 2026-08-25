@@ -16,9 +16,6 @@ import kotlin.random.Random
 /**
  * Stable Audio music generation — identical endpoint, payload and
  * poll-until-200 flow as genSAudio()/pollAudio() in main.js.
- *
- * Throws [StableAudioAuthException] on 401/429 so the caller can
- * trigger auto-recovery (new account creation via WebView).
  */
 class StableAudioClient(private val settings: SettingsStore) {
 
@@ -27,42 +24,10 @@ class StableAudioClient(private val settings: SettingsStore) {
         .readTimeout(180, TimeUnit.SECONDS)
         .build()
 
-    /** Check if token is set and looks valid (non-empty, starts with "eyJ" for JWT). */
-    fun isTokenValid(): Boolean {
-        val token = settings.stableAudioToken
-        return token.isNotBlank() && token.startsWith("eyJ")
-    }
-
-    /** Quick validation call — hits a lightweight endpoint to check if token works. */
-    suspend fun validateToken(): Boolean = withContext(Dispatchers.IO) {
-        val token = settings.stableAudioToken
-        if (token.isBlank()) return@withContext false
-        try {
-            // Use the generate endpoint with minimal payload to test auth
-            val body = JSONObject().put("data", JSONObject()
-                .put("type", "generations")
-                .put("attributes", JSONObject()
-                    .put("prompts", JSONArray().put(JSONObject().put("text", "test").put("weight", 1)))
-                    .put("length_seconds", 5)
-                    .put("seed", 0)))
-            val req = Request.Builder()
-                .url(AppConfig.STABLE_AUDIO_URL)
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer $token")
-                .post(body.toString().toRequestBody("application/json".toMediaType()))
-                .build()
-            http.newCall(req).execute().use { r ->
-                r.code != 401 && r.code != 403
-            }
-        } catch (e: Exception) {
-            false
-        }
-    }
-
     /** Starts a generation; returns the result polling URL. */
     suspend fun generate(prompt: String, lengthSeconds: Int): String = withContext(Dispatchers.IO) {
         val token = settings.stableAudioToken
-        if (token.isBlank()) throw StableAuthRequiredException("Stable Audio token not set. Go to Settings → Auto-Create Account & Sync Token.")
+        if (token.isBlank()) throw Exception("Stable Audio token not set.")
         val seed = Random.nextInt(-32768, 32768)
         val body = JSONObject().put("data", JSONObject()
             .put("type", "generations")
@@ -78,17 +43,9 @@ class StableAudioClient(private val settings: SettingsStore) {
             .build()
         http.newCall(req).execute().use { r ->
             val text = r.body?.string() ?: ""
-            when (r.code) {
-                200, 201 -> JSONObject(text).getJSONArray("data").getJSONObject(0)
-                    .getJSONObject("links").getString("result")
-                401, 403 -> throw StableAuthRequiredException(
-                    "Token expired or invalid (HTTP ${r.code}). Go to Settings → Auto-Create Account & Sync Token to get a fresh token."
-                )
-                429 -> throw StableAuthRequiredException(
-                    "API rate limit reached (HTTP 429). Go to Settings → Auto-Create Account & Sync Token to get a new account."
-                )
-                else -> throw Exception("Stable Audio (${r.code}): ${text.take(200)}")
-            }
+            if (!r.isSuccessful) throw Exception("Stable Audio (${r.code}): ${text.take(200)}")
+            JSONObject(text).getJSONArray("data").getJSONObject(0)
+                .getJSONObject("links").getString("result")
         }
     }
 
@@ -106,12 +63,6 @@ class StableAudioClient(private val settings: SettingsStore) {
                 when (r.code) {
                     200 -> return@withContext r.body!!.bytes()
                     202 -> { /* still composing */ }
-                    401, 403 -> throw StableAuthRequiredException(
-                        "Token expired during polling (HTTP ${r.code})."
-                    )
-                    429 -> throw StableAuthRequiredException(
-                        "API rate limit reached during polling (HTTP 429)."
-                    )
                     else -> throw Exception("Download fail: HTTP ${r.code}")
                 }
             }
@@ -120,9 +71,3 @@ class StableAudioClient(private val settings: SettingsStore) {
         throw Exception("Timed out (3 min).")
     }
 }
-
-/**
- * Thrown when Stable Audio API returns 401/403/429.
- * The caller should trigger auto-recovery (create new account via WebView).
- */
-class StableAuthRequiredException(message: String) : Exception(message)
