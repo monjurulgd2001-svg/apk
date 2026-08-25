@@ -53,8 +53,6 @@ import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.foundation.BorderStroke
-import com.zedge.automation.ui.theme.GlassBorder
 import com.zedge.automation.ui.theme.PrimaryPink
 import com.zedge.automation.ui.theme.TextMuted
 import kotlinx.coroutines.delay
@@ -209,7 +207,7 @@ fun WallpaperPreviewDialog(url: String, title: String, onDismiss: () -> Unit) {
         Box(
             Modifier
                 .fillMaxSize()
-                .background(Color(0xCC060314))
+                .background(Color(0xE6140F11))
                 .clickable { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
@@ -219,8 +217,7 @@ fun WallpaperPreviewDialog(url: String, title: String, onDismiss: () -> Unit) {
                     .padding(horizontal = 20.dp)
                     .clickable(enabled = false) {}, // prevent dismiss when clicking inside the card
                 shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xF51A1433)),
-                border = BorderStroke(1.dp, GlassBorder)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1C25))
             ) {
                 Column(Modifier.padding(20.dp)) {
                     // ── Header ──

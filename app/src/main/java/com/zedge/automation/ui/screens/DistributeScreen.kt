@@ -4,40 +4,29 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.zedge.automation.ui.GlassCard
-import com.zedge.automation.ui.GlowDot
-import com.zedge.automation.ui.IconTile
-import com.zedge.automation.ui.NeonButton
-import com.zedge.automation.ui.SectionHeader
-import com.zedge.automation.ui.theme.BlueSoft
-import com.zedge.automation.ui.theme.GreenSoft
-import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.SkyBlue
-import com.zedge.automation.ui.theme.SkyBlueLight
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.viewmodel.MainViewModel
@@ -57,36 +46,23 @@ fun DistributeScreen(vm: MainViewModel) {
         if (uris.isNotEmpty()) vm.distributeImages(uris)
     }
 
-    val cyanSweep = remember { Brush.horizontalGradient(listOf(SkyBlue, Violet)) }
-
     LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
-            SectionHeader(
-                "Distribute",
-                subtitle = "Round-robin pipe — media spreads evenly across Zedge accounts in order"
+            Text("\uD83D\uDDBC\uFE0F Distribute Image", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Load wallpaper images into your round-robin automation pipe. Media distributes evenly across Zedge accounts in order.",
+                color = TextMuted, style = MaterialTheme.typography.bodySmall
             )
         }
         item {
-            GlassCard {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconTile(Icons.Filled.Share, SkyBlue, BlueSoft, 46, 14)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text("Image Pipeline", color = Color.White, fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "zedge1 \u2192 zedge2 \u2192 \u2026 in strict order",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted
-                            )
-                        }
-                    }
-                    NeonButton(
-                        "Select Images",
-                        modifier = Modifier.fillMaxWidth(),
-                        gradient = cyanSweep,
-                        icon = Icons.Filled.Image
-                    ) { pickImages.launch("image/*") }
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Button(
+                        onClick = { pickImages.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Violet)
+                    ) { Text("Select Images", fontWeight = FontWeight.SemiBold) }
 
                     if (progress.total > 0 && progress.current < progress.total) {
                         LinearProgressIndicator(
@@ -102,36 +78,17 @@ fun DistributeScreen(vm: MainViewModel) {
                 }
             }
         }
-        item { SectionHeader("Recently Distributed") }
+        item {
+            Text("Recently distributed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
         items(distributed, key = { it.id }) { item ->
-            GlassCard(corner = 16) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(Icons.Filled.Image, MintGreen, GreenSoft, 38, 12)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            item.title ?: item.name ?: item.id,
-                            maxLines = 1,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.White
-                        )
-                        Text(
-                            "${item.category ?: "OTHER"} \u00b7 ${formatBytes(item.size)}",
-                            style = MaterialTheme.typography.bodySmall, color = TextMuted
-                        )
-                    }
-                    Spacer(Modifier.width(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        GlowDot(MintGreen, 5)
-                        Spacer(Modifier.width(5.dp))
-                        Text(
-                            item.distributedTo ?: "",
-                            color = SkyBlueLight,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
+            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.padding(12.dp)) {
+                    Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)
+                    Text(
+                        "\u2192 ${item.distributedTo} · ${item.category ?: "OTHER"} · ${formatBytes(item.size)}",
+                        style = MaterialTheme.typography.bodySmall, color = TextMuted
+                    )
                 }
             }
         }

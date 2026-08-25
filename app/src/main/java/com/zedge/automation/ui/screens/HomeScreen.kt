@@ -1,15 +1,12 @@
 package com.zedge.automation.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,10 +17,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,36 +38,32 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.zedge.automation.data.QueueItem
 import com.zedge.automation.ui.AudioPlayer
 import com.zedge.automation.ui.AudioProgressBar
 import com.zedge.automation.ui.AudioProgressPoller
-import com.zedge.automation.ui.GlassCard
-import com.zedge.automation.ui.GlowDot
-import com.zedge.automation.ui.SectionHeader
-import com.zedge.automation.ui.StatusBadge
 import com.zedge.automation.ui.WallpaperPreviewDialog
-import com.zedge.automation.ui.theme.AccentGradient
+import com.zedge.automation.ui.theme.BlueSoft
 import com.zedge.automation.ui.theme.ChipBg
 import com.zedge.automation.ui.theme.ChipText
-import com.zedge.automation.ui.theme.GlassBorder
-import com.zedge.automation.ui.theme.GlassPanel
-import com.zedge.automation.ui.theme.GlassPanelStrong
+import com.zedge.automation.ui.theme.GreenSoft
 import com.zedge.automation.ui.theme.MintGreen
+import com.zedge.automation.ui.theme.PillBlueBg
+import com.zedge.automation.ui.theme.PillBlueText
+import com.zedge.automation.ui.theme.PillGreenBg
+import com.zedge.automation.ui.theme.PillGreenText
+import com.zedge.automation.ui.theme.PinkSoft
 import com.zedge.automation.ui.theme.PrimaryPink
 import com.zedge.automation.ui.theme.SkyBlue
-import com.zedge.automation.ui.theme.SkyBlueLight
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
 import com.zedge.automation.ui.theme.VioletLight
+import com.zedge.automation.ui.theme.VioletSoft
 import com.zedge.automation.viewmodel.MainViewModel
 import java.util.Locale
 
@@ -76,7 +74,7 @@ fun formatBytes(bytes: Long): String {
     return String.format(Locale.US, "%.2f %s", bytes / Math.pow(1024.0, i.toDouble()), sizes[i])
 }
 
-/** Mission-control style glass dashboard fed with the user's live queue data. */
+/** Dark "Automation Hub" style dashboard fed with the user's live queue data. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(vm: MainViewModel, onViewAll: () -> Unit = {}) {
@@ -101,99 +99,40 @@ fun HomeScreen(vm: MainViewModel, onViewAll: () -> Unit = {}) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                // ── Hero: one large mission-control glass panel ──
-                GlassCard(container = GlassPanelStrong, corner = 26) {
-                    Column(Modifier.padding(18.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "MISSION CONTROL",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextMuted,
-                                letterSpacing = 2.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.weight(1f))
-                            GlowDot(MintGreen, 6)
-                            Spacer(Modifier.width(5.dp))
-                            Text(
-                                "LIVE",
-                                color = MintGreen,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                "$total",
-                                style = MaterialTheme.typography.displaySmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "assets in pipeline",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = TextMuted,
-                                modifier = Modifier.padding(bottom = 6.dp)
-                            )
-                            Spacer(Modifier.weight(1f))
-                            Row(
-                                Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0x2922D3EE))
-                                    .border(1.dp, Color(0x5922D3EE), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    activeProject.uppercase(Locale.US),
-                                    color = SkyBlueLight,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(14.dp))
-                        HorizontalDivider(color = GlassBorder)
-                        Spacer(Modifier.height(14.dp))
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Metric("$queued", "Queued", SkyBlue)
-                            Metric("$audios", "Audio", PrimaryPink)
-                            Metric("$wallpapers", "Visual", MintGreen)
-                            Metric(activeProject.uppercase(Locale.US), "Database", VioletLight)
-                        }
-                    }
+                Text(
+                    "System Performance Indicators",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextMuted
+                )
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard("Active DB", activeProject.uppercase(Locale.US), Icons.Filled.Storage, VioletSoft, VioletLight, Modifier.weight(1f))
+                    StatCard("Queued Assets", "$queued", Icons.Filled.AccessTime, BlueSoft, SkyBlue, Modifier.weight(1f))
                 }
             }
             item {
-                SectionHeader(
-                    "Live Queue",
-                    subtitle = "Latest 12 assets",
-                    trailing = {
-                        Row(
-                            Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(ChipBg)
-                                .border(1.dp, Color(0x59A855F7), RoundedCornerShape(18.dp))
-                                .clickable { onViewAll() }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                "VIEW ALL",
-                                color = ChipText,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    }
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatCard("Audios Loaded", "$audios", Icons.Filled.MusicNote, PinkSoft, PrimaryPink, Modifier.weight(1f))
+                    StatCard("Wallpapers", "$wallpapers", Icons.Filled.Image, GreenSoft, MintGreen, Modifier.weight(1f))
+                }
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Recently Added in Queue", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "View All",
+                        color = PrimaryPink,
+                        fontWeight = FontWeight.SemiBold,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.clickable { onViewAll() }
+                    )
+                }
             }
             items(items.take(12), key = { it.id }) { item -> QueueCard(item, onPreview = { previewItem = item }) }
         }
@@ -208,115 +147,123 @@ fun HomeScreen(vm: MainViewModel, onViewAll: () -> Unit = {}) {
 }
 
 @Composable
-private fun Metric(value: String, label: String, tint: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            value,
-            color = tint,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.ExtraBold,
-            maxLines = 1
-        )
-        Text(
-            label.uppercase(Locale.US),
-            color = TextMuted,
-            style = MaterialTheme.typography.labelSmall,
-            letterSpacing = 1.sp,
-            maxLines = 1
-        )
+private fun StatCard(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    tileBg: Color,
+    tint: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(48.dp).background(tileBg, RoundedCornerShape(14.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(label, style = MaterialTheme.typography.bodySmall, color = TextMuted, maxLines = 2)
+                Text(
+                    value,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 
-/** New queue row — glass strip card with a neon edge bar instead of the old fat cards. */
 @Composable
 private fun QueueCard(item: QueueItem, onPreview: () -> Unit = {}) {
     val isPlaying = AudioPlayer.playingId == item.id
-    val shape = RoundedCornerShape(18.dp)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .clip(shape)
-            .background(GlassPanel)
-            .border(1.dp, GlassBorder, shape)
-            .clickable {
-                if (item.isAudio) AudioPlayer.toggle(item.id, item.fileUrl)
-                else if (!item.fileUrl.isNullOrBlank()) onPreview()
-            }
+    Card(
+        onClick = {
+            if (item.isAudio) AudioPlayer.toggle(item.id, item.fileUrl)
+            else if (!item.fileUrl.isNullOrBlank()) onPreview()
+        },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        // Neon identity strip: pink→violet for audio, cyan→mint for wallpapers
-        Box(
-            Modifier
-                .width(4.dp)
-                .fillMaxHeight()
-                .background(
-                    if (item.isAudio) Brush.verticalGradient(listOf(PrimaryPink, Violet))
-                    else Brush.verticalGradient(listOf(SkyBlue, MintGreen))
-                )
-        )
-        Column(Modifier.weight(1f).padding(12.dp)) {
+        Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Thumbnail: real image for wallpapers, music tile for audio
                 if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = item.fileUrl,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0x1AFFFFFF))
-                            .border(1.dp, GlassBorder, RoundedCornerShape(14.dp))
+                        modifier = Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp))
                     )
                 } else {
                     Box(
-                        Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(if (isPlaying) AccentGradient else Color(0x1AFFFFFF))
-                            .border(1.dp, GlassBorder, RoundedCornerShape(14.dp)),
+                        Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                             contentDescription = if (isPlaying) "Stop" else "Play",
-                            tint = if (isPlaying) Color.White else VioletLight,
-                            modifier = Modifier.size(28.dp)
+                            tint = if (isPlaying) PrimaryPink else Violet,
+                            modifier = Modifier.size(34.dp)
                         )
                     }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            item.title ?: item.name ?: item.id,
-                            modifier = Modifier.weight(1f),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color.White,
-                            maxLines = 1
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        StatusBadge(item.status ?: "queued")
-                    }
-                    Spacer(Modifier.height(3.dp))
                     Text(
-                        "${(item.category ?: "OTHER").uppercase(Locale.US)} \u00b7 ${formatBytes(item.size)}",
-                        color = TextMuted,
-                        style = MaterialTheme.typography.labelMedium,
+                        item.title ?: item.name ?: item.id,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
                         maxLines = 1
                     )
-                    val tagLine = (item.tags ?: "")
-                        .split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                        .take(3).joinToString("  ") { "#$it" }
-                    if (tagLine.isNotEmpty()) {
-                        Spacer(Modifier.height(3.dp))
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            tagLine,
+                            (item.category ?: "OTHER").uppercase(Locale.US),
                             color = ChipText,
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelSmall
                         )
+                        Spacer(Modifier.width(8.dp))
+                        Text(formatBytes(item.size), color = TextMuted, style = MaterialTheme.typography.labelMedium)
                     }
+                    Spacer(Modifier.height(6.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (item.tags ?: "").split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(3).forEach { tag ->
+                            Box(
+                                Modifier.background(ChipBg, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    tag,
+                                    color = ChipText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.width(8.dp))
+                val isUploaded = item.status == "uploaded" || item.status == "done" || item.status == "published"
+                Box(
+                    Modifier.background(if (isUploaded) PillGreenBg else PillBlueBg, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        (item.status ?: "queued").uppercase(Locale.US),
+                        color = if (isUploaded) PillGreenText else PillBlueText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
             // Progress bar — appears below the row only while this audio is playing

@@ -50,8 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zedge.automation.data.QueueItem
-import com.zedge.automation.ui.theme.GlassBorder
-import com.zedge.automation.ui.theme.GlassPanel
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PastelOrange
 import com.zedge.automation.ui.theme.PrimaryPink
@@ -291,8 +289,8 @@ fun ScheduleScreen(vm: MainViewModel) {
 private fun StatCard(icon: ImageVector, label: String, value: String, color: Color) {
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = GlassPanel),
-        border = BorderStroke(1.dp, color.copy(alpha = 0.35f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, color.copy(alpha = 0.25f))
     ) {
         Row(
             Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -330,12 +328,12 @@ private fun PlannedDayCard(dayNum: String, dayLabel: String, month: String, day:
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (day.isToday) PrimaryPink.copy(alpha = 0.12f) else GlassPanel
+            containerColor = if (day.isToday) PrimaryPink.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surface
         ),
         border = if (day.isToday)
             BorderStroke(1.5.dp, PrimaryPink)
         else
-            BorderStroke(1.dp, GlassBorder)
+            BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
     ) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             // Compact header: "24 AUG · MON" + tiny day-type icon

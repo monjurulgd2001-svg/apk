@@ -124,8 +124,8 @@ fun StableAudioLoginScreen(
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
-                                isError -> Color(0x29F87171)
-                                showSuccess -> Color(0x292EE6A8)
+                                isError -> Color(0xFF2A1A1A)
+                                showSuccess -> Color(0xFF1A2A1A)
                                 else -> MaterialTheme.colorScheme.surface
                             }
                         )
@@ -165,7 +165,7 @@ fun StableAudioLoginScreen(
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0x1F2EE6A8))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A2E1A))
                     ) {
                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -177,7 +177,7 @@ fun StableAudioLoginScreen(
 
                             Card(
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0x2E2EE6A8))
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF23392E))
                             ) {
                                 Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     CredentialRow("Email", successEmail)
@@ -205,7 +205,7 @@ fun StableAudioLoginScreen(
                 item {
                     Card(
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0x29F87171))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A1A1A))
                     ) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.Top) {
                             Icon(Icons.Filled.Warning, null, tint = SoftRed, modifier = Modifier.size(18.dp))
