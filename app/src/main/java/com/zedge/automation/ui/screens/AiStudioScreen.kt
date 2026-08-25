@@ -66,13 +66,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.ui.viewinterop.AndroidView
 import com.zedge.automation.data.StableAudioAuth
+import androidx.compose.foundation.BorderStroke
+import com.zedge.automation.ui.theme.GlassBorder
+import com.zedge.automation.ui.theme.GlassPanel
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 
-private val CardBg = Color(0xFF2A1F3D)
-private val CardBg2 = Color(0xFF1E2A3A)
-private val AccentPink = Color(0xFFE8607A)
+private val CardBg = Color(0x26A855F7)      // frosted neon-purple glass
+private val CardBg2 = Color(0x2422D3EE)     // frosted neon-cyan glass
+private val AccentPink = Color(0xFFC084FC)  // neon purple accent
 
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,6 +118,7 @@ fun AiStudioScreen(vm: MainViewModel) {
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = CardBg),
+                border = BorderStroke(1.dp, GlassBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -138,7 +142,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                         Text(
                             if (hasToken) "Active" else "No Token",
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (hasToken) Color(0xFF6FCF97) else TextMuted,
+                            color = if (hasToken) Color(0xFF5EF0C0) else TextMuted,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -228,6 +232,7 @@ fun AiStudioScreen(vm: MainViewModel) {
             Card(
                 shape = RoundedCornerShape(14.dp),
                 colors = CardDefaults.cardColors(containerColor = CardBg2),
+                border = BorderStroke(1.dp, GlassBorder),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(
@@ -306,7 +311,7 @@ fun AiStudioScreen(vm: MainViewModel) {
                                             .clip(RoundedCornerShape(3.dp))
                                             .background(
                                                 Brush.horizontalGradient(
-                                                    listOf(Color(0xFF00C9A7), Color(0xFF56CCF2), Color(0xFFB8E986))
+                                                    listOf(Color(0xFFA855F7), Color(0xFF22D3EE), Color(0xFF67E8F9))
                                                 )
                                             )
                                     )
@@ -417,7 +422,8 @@ fun AiStudioScreen(vm: MainViewModel) {
 
             Card(
                 shape = RoundedCornerShape(10.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.03f)),
+                colors = CardDefaults.cardColors(containerColor = GlassPanel),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -432,8 +438,8 @@ fun AiStudioScreen(vm: MainViewModel) {
                         },
                         contentDescription = null,
                         tint = when {
-                            isDone -> Color(0xFF6FCF97)
-                            isFailed -> Color(0xFFF2994A)
+                            isDone -> Color(0xFF5EF0C0)
+                            isFailed -> Color(0xFFFBBF24)
                             else -> TextMuted
                         },
                         modifier = Modifier.size(14.dp)

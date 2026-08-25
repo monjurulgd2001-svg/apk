@@ -48,7 +48,10 @@ import com.zedge.automation.ui.AudioPlayer
 import com.zedge.automation.ui.AudioProgressBar
 import com.zedge.automation.ui.AudioProgressPoller
 import com.zedge.automation.ui.WallpaperPreviewDialog
+import androidx.compose.foundation.BorderStroke
 import com.zedge.automation.ui.theme.BlueSoft
+import com.zedge.automation.ui.theme.GlassBorder
+import com.zedge.automation.ui.theme.GlassPanel
 import com.zedge.automation.ui.theme.ChipBg
 import com.zedge.automation.ui.theme.ChipText
 import com.zedge.automation.ui.theme.GreenSoft
@@ -158,7 +161,8 @@ private fun StatCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = GlassPanel),
+        border = BorderStroke(1.dp, GlassBorder)
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -190,7 +194,8 @@ private fun QueueCard(item: QueueItem, onPreview: () -> Unit = {}) {
             else if (!item.fileUrl.isNullOrBlank()) onPreview()
         },
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = GlassPanel),
+        border = BorderStroke(1.dp, GlassBorder)
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -200,11 +205,11 @@ private fun QueueCard(item: QueueItem, onPreview: () -> Unit = {}) {
                         model = item.fileUrl,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp))
+                        modifier = Modifier.size(72.dp).background(Color(0x1AFFFFFF), RoundedCornerShape(14.dp))
                     )
                 } else {
                     Box(
-                        Modifier.size(72.dp).background(Color(0xFF201A1C), RoundedCornerShape(14.dp)),
+                        Modifier.size(72.dp).background(Color(0x1AFFFFFF), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(

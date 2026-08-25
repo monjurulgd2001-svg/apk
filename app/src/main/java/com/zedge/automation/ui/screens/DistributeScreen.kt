@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import com.zedge.automation.ui.theme.GlassBorder
+import com.zedge.automation.ui.theme.GlassPanel
 import com.zedge.automation.ui.theme.SkyBlue
 import com.zedge.automation.ui.theme.TextMuted
 import com.zedge.automation.ui.theme.Violet
@@ -55,7 +58,7 @@ fun DistributeScreen(vm: MainViewModel) {
             )
         }
         item {
-            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = GlassPanel), border = BorderStroke(1.dp, GlassBorder)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Button(
                         onClick = { pickImages.launch("image/*") },
@@ -82,7 +85,7 @@ fun DistributeScreen(vm: MainViewModel) {
             Text("Recently distributed", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         items(distributed, key = { it.id }) { item ->
-            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+            Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = GlassPanel), border = BorderStroke(1.dp, GlassBorder)) {
                 Column(Modifier.padding(12.dp)) {
                     Text(item.title ?: item.name ?: item.id, maxLines = 1, fontWeight = FontWeight.Medium)
                     Text(

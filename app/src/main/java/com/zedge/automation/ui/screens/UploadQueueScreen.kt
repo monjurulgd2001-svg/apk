@@ -56,6 +56,9 @@ import com.zedge.automation.ui.AudioProgressBar
 import com.zedge.automation.ui.AudioProgressPoller
 import com.zedge.automation.ui.WallpaperPreviewDialog
 import com.zedge.automation.data.QueueItem
+import androidx.compose.foundation.BorderStroke
+import com.zedge.automation.ui.theme.GlassBorder
+import com.zedge.automation.ui.theme.GlassPanel
 import com.zedge.automation.ui.theme.MintGreen
 import com.zedge.automation.ui.theme.PastelOrange
 import com.zedge.automation.ui.theme.PrimaryPink
@@ -101,7 +104,7 @@ fun UploadQueueScreen(vm: MainViewModel) {
                 Text("Wallpaper (JPEG/PNG) অথবা Ringtone (MP3) আপলোড করুন — Gemini AI অটো-মেটাডাটা সহ", color = TextMuted, style = MaterialTheme.typography.bodySmall)
             }
             item {
-                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+                Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = GlassPanel), border = BorderStroke(1.dp, GlassBorder)) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         TextButton(onClick = { showMetaForm = !showMetaForm }) {
                             Text(if (showMetaForm) "Hide manual metadata ▲" else "Manual metadata (optional) ▼")
@@ -189,13 +192,13 @@ fun UploadQueueScreen(vm: MainViewModel) {
 @Composable
 private fun QueueItemCard(item: QueueItem, onEdit: () -> Unit, onDelete: () -> Unit, onPreview: () -> Unit) {
     val isPlaying = AudioPlayer.playingId == item.id
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = GlassPanel), border = BorderStroke(1.dp, GlassBorder)) {
         Column(Modifier.padding(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (!item.isAudio && !item.fileUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = item.fileUrl, contentDescription = null,
-                        modifier = Modifier.size(52.dp).background(Color(0xFF201A1C), RoundedCornerShape(12.dp)).clickable { onPreview() }
+                        modifier = Modifier.size(52.dp).background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp)).clickable { onPreview() }
                     )
                 } else {
                     Icon(

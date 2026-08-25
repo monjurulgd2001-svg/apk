@@ -82,7 +82,10 @@ import com.zedge.automation.ui.screens.ScheduleScreen
 import com.zedge.automation.ui.screens.SettingsScreen
 import com.zedge.automation.ui.screens.StableAudioLoginScreen
 import com.zedge.automation.ui.screens.UploadQueueScreen
+import androidx.compose.material3.HorizontalDivider
 import com.zedge.automation.ui.theme.AccentGradient
+import com.zedge.automation.ui.theme.GlassBackground
+import com.zedge.automation.ui.theme.GlassBorder
 import com.zedge.automation.ui.theme.HeaderDark
 import com.zedge.automation.ui.theme.PrimaryPink
 import com.zedge.automation.ui.theme.SoftRed
@@ -180,10 +183,12 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
         )
     }
 
+    GlassBackground {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         topBar = {
-            // Custom "Automation Hub" style header
+            // Custom "Automation Hub" style header — frosted glass with 1px bottom edge
+            Column {
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -252,8 +257,13 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
                     }
                 }
             }
+            HorizontalDivider(thickness = 1.dp, color = GlassBorder)
+            }
         },
         bottomBar = {
+            // Frosted glass bottom bar with subtle 1px top edge (same tabs/layout)
+            Column {
+            HorizontalDivider(thickness = 1.dp, color = GlassBorder)
             NavigationBar(containerColor = HeaderDark) {
                 tabs.forEach { tab ->
                     val selected = currentRoute == tab.route
@@ -288,14 +298,15 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
                             selectedTextColor   = PrimaryPink,
                             unselectedIconColor = TextMuted,
                             unselectedTextColor = TextMuted,
-                            indicatorColor      = Color(0x33F27E9D)
+                            indicatorColor      = Color(0x40A855F7)
                         )
                     )
                 }
             }
+            }
         }
     ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Box(Modifier.padding(padding).fillMaxSize()) {
             NavHost(
                 navController    = navController,
                 startDestination = "home",
@@ -349,5 +360,6 @@ fun ZedgeApp(vm: MainViewModel = viewModel()) {
                 }
             }
         }
+    }
     }
 }
