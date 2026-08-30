@@ -1,0 +1,2347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automation Hub - Unified Dashboard</title>
+  <!-- SEO & Performance preconnect links -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+  <!-- Creative inline SVG Favicon (matching brand logo) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>❤️</text></svg>">
+</head>
+<body>
+
+  <!-- 1. Professional App Loading Screen -->
+  <div id="appLoader">
+    <div class="loader-content">
+      <div class="loader-mascot">
+        <i class="fas fa-bolt"></i>
+      </div>
+      <div class="loader-title">Automation Hub</div>
+      <div class="loader-subtitle">Loading data streams and configurations...</div>
+      <div class="loader-bar-wrap">
+        <div class="loader-bar-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Safety Fallback Script: Dismisses loader after 4.5 seconds if script or database is blocked -->
+  <script>
+    setTimeout(() => {
+      const loader = document.getElementById("appLoader");
+      if (loader && !loader.classList.contains("loaded")) {
+        loader.classList.add("loaded");
+        console.warn("Loader dismissed by safety fallback timeout.");
+      }
+    }, 4500);
+  </script>
+
+  <!-- Non-Module UI Router Script (Bypasses CORS/Firebase network blocking to keep tabs interactive) -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const tabs = document.querySelectorAll(".tab-content");
+      const navButtons = document.querySelectorAll(".tab-btn");
+
+      function navigateTo(targetHash) {
+        const hash = targetHash || "#home";
+        
+        // Hide all tabs, show selected tab
+        tabs.forEach(tab => {
+          tab.classList.remove("active");
+          if (tab.id === "tab-" + hash.replace("#", "")) {
+            tab.classList.add("active");
+          }
+        });
+
+        // Toggle active buttons
+        navButtons.forEach(btn => {
+          btn.classList.remove("active");
+          if (btn.getAttribute("data-tab") === hash.replace("#", "")) {
+            btn.classList.add("active");
+          }
+        });
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      window.addEventListener("hashchange", () => {
+        navigateTo(window.location.hash);
+      });
+
+      // Initial route load
+      navigateTo(window.location.hash);
+
+      // Global Modal and Zoom closer handlers
+      window.closeModal = function() {
+        const modal = document.getElementById("unifiedItemModal");
+        if (modal) modal.classList.remove("open");
+        const audEl = document.getElementById("modalPreviewAudio");
+        if (audEl) {
+          audEl.pause();
+          audEl.src = "";
+        }
+        const viz = document.getElementById("modalAudioVisualizer");
+        if (viz) viz.style.display = "none";
+        
+        if (window.modal24hInterval) {
+          clearInterval(window.modal24hInterval);
+          window.modal24hInterval = null;
+        }
+      };
+
+      window.closeFocusZoom = function() {
+        const zoom = document.getElementById("premiumZoomModal");
+        if (zoom) zoom.classList.remove("open");
+        const zoomTarget = document.getElementById("zoomTargetImg");
+        if (zoomTarget) zoomTarget.src = "";
+        document.body.style.overflow = "";
+      };
+
+      // Wire close triggers
+      const closeHeader = document.getElementById("modalCloseBtnHeader");
+      const closeFooter = document.getElementById("modalCloseBtnFooter");
+      const closeZoom = document.getElementById("zoomCloseBtn");
+
+      if (closeHeader) closeHeader.addEventListener("click", window.closeModal);
+      if (closeFooter) closeFooter.addEventListener("click", window.closeModal);
+      if (closeZoom) closeZoom.addEventListener("click", window.closeFocusZoom);
+
+      // Overlay background click closers
+      const zoomOverlay = document.getElementById("premiumZoomModal");
+      if (zoomOverlay) {
+        zoomOverlay.addEventListener("click", (e) => {
+          if (e.target === zoomOverlay || e.target.id === "zoomViewArea") {
+            window.closeFocusZoom();
+          }
+        });
+      }
+
+      // Esc closes key triggers
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const zoomModal = document.getElementById("premiumZoomModal");
+          const settingsModal = document.getElementById("settingsModal");
+          const editModal = document.getElementById("unifiedItemModal");
+          if (zoomModal && zoomModal.classList.contains("open")) {
+            window.closeFocusZoom();
+          } else if (settingsModal && settingsModal.classList.contains("open")) {
+            settingsModal.classList.remove("open");
+          } else if (editModal && editModal.classList.contains("open")) {
+            window.closeModal();
+          }
+        }
+      });
+    });
+  </script>
+
+  <!-- Main SPA Container -->
+  <div class="app-container">
+
+    <!-- 2. Sticky Header with Cute Branding & Switchers -->
+    <header class="app-header">
+      <div class="header-top">
+        <a href="#home" class="brand-wrap">
+          <div class="brand-icon">
+            <i class="fas fa-heart"></i>
+          </div>
+          <h1 class="brand-title">Automation Hub</h1>
+        </a>
+        <div class="header-actions">
+          <button type="button" class="gear-btn" id="openSettingsBtn" title="AI Settings"><i class="fas fa-gear"></i></button>
+          <div class="select-wrapper">
+            <select id="activeZedgeAccount" class="pro-select" aria-label="Select active Zedge database account">
+              <option value="zedge1">Zedge 1</option>
+              <option value="zedge2">Zedge 2</option>
+              <option value="zedge3">Zedge 3</option>
+            </select>
+            <span class="select-icon"><i class="fas fa-chevron-down"></i></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Rounded Tab Navigation using anchor links for native routing -->
+      <nav class="nav-tabs" aria-label="Main Navigation">
+        <a class="tab-btn active" data-tab="home" href="#home"><i class="fas fa-home"></i> Home</a>
+        <a class="tab-btn" data-tab="upload" href="#upload"><i class="fas fa-cloud-upload-alt"></i> Upload Queue</a>
+        <a class="tab-btn" data-tab="24h" href="#24h"><i class="fas fa-clock"></i> 24H Wallpaper</a>
+        <a class="tab-btn" data-tab="schedule" href="#schedule"><i class="fas fa-calendar-alt"></i> Schedule Calendar</a>
+        <a class="tab-btn" data-tab="distribute" href="#distribute"><i class="fas fa-share-nodes"></i> Distribute Image</a>
+      </nav>
+    </header>
+
+    <!-- Tab Sub-Loader (Shown while databases sync) -->
+    <div id="tabSubLoader" class="sub-loader" style="display: none;">
+      <div class="sub-spinner"></div>
+      <p style="color: var(--text-muted); font-size: 14px; font-weight: 600;">Syncing with Firebase...</p>
+    </div>
+
+    <!-- ------------------------------------------------------------- -->
+    <!-- TAB 1: HOME PANEL -->
+    <!-- ------------------------------------------------------------- -->
+    <main id="tab-home" class="tab-content active">
+
+      <!-- Quick Metrics widgets -->
+      <div class="stats-grid">
+        <div class="stat-card primary">
+          <div class="stat-icon"><i class="fas fa-database"></i></div>
+          <div class="stat-info">
+            <h4>Active Database</h4>
+            <p id="statDbName">-</p>
+          </div>
+        </div>
+        <div class="stat-card secondary">
+          <div class="stat-icon"><i class="fas fa-clock"></i></div>
+          <div class="stat-info">
+            <h4>Queued Uploads</h4>
+            <p id="statTotalQueued">0</p>
+          </div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-icon"><i class="fas fa-music"></i></div>
+          <div class="stat-info">
+            <h4>Audios Loaded</h4>
+            <p id="statTotalAudios">0</p>
+          </div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-icon"><i class="fas fa-image"></i></div>
+          <div class="stat-info">
+            <h4>Wallpapers Loaded</h4>
+            <p id="statTotalWallpapers">0</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent items feed -->
+      <section class="content-section">
+        <h3 class="section-title"><i class="fas fa-history"></i> Recently Added in Queue</h3>
+        <div class="queue-grid" id="recentItemsGrid">
+          <!-- Populated by script -->
+        </div>
+      </section>
+
+      <!-- Visual modules catalog -->
+      <section class="content-section">
+        <h3 class="section-title"><i class="fas fa-cubes"></i> System Toolkits</h3>
+        <div class="module-cards">
+          <a href="#upload" class="module-card">
+            <div class="module-card-icon"><i class="fas fa-cloud-upload-alt"></i></div>
+            <h3>Upload Queue</h3>
+            <p>Upload image & audio content, manage tags, categories, descriptions, and watch live upload worker progress.</p>
+            <span class="module-card-link">Launch Module <i class="fas fa-angle-right"></i></span>
+          </a>
+          <a href="#schedule" class="module-card">
+            <div class="module-card-icon"><i class="fas fa-calendar-days"></i></div>
+            <h3>Schedule Calendar</h3>
+            <p>Examine publishing timeline mapped for Dhaka timezone. Shift priority queues, requeue, and reorder uploads.</p>
+            <span class="module-card-link">Launch Module <i class="fas fa-angle-right"></i></span>
+          </a>
+          <a href="#distribute" class="module-card">
+            <div class="module-card-icon"><i class="fas fa-share-nodes"></i></div>
+            <h3>Distribute Image</h3>
+            <p>Load wallpapers into round-robin automated endpoints. Distributes automatically between Zedge 1, 2, and 3.</p>
+            <span class="module-card-link">Launch Module <i class="fas fa-angle-right"></i></span>
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <!-- ------------------------------------------------------------- -->
+    <!-- TAB 2: UPLOAD QUEUE PANEL -->
+    <!-- ------------------------------------------------------------- -->
+    <section id="tab-upload" class="tab-content">
+      <div class="content-section">
+        <h3 class="section-title"><i class="fas fa-cloud-arrow-up"></i> Upload Media Assets</h3>
+        <div class="cute-dropzone" id="activeUploadDropzone">
+          <span class="dropzone-icon"><i class="fas fa-folder-open"></i></span>
+          <h3>Drag and drop files here</h3>
+          <p>Or click to browse your desktop files</p>
+          <small>Supported Formats: Audio (MP3/MPEG), Image (JPEG/JPG/PNG)</small>
+          <button type="button" class="dropzone-btn" id="activeUploadChooseBtn">Choose Files</button>
+          <input type="file" id="activeUploadFilesInput" accept="image/jpeg,image/jpg,image/png,audio/mpeg,.mp3,.png" multiple style="display: none;" />
+        </div>
+      </div>
+
+      <section class="content-section">
+        <div class="queue-header">
+          <h3 class="section-title" style="margin-bottom: 0;"><i class="fas fa-list-ol"></i> Queue Assets List</h3>
+          <div class="queue-count-wrap" id="uploadQueueCount"></div>
+        </div>
+        
+        <div class="queue-grid" id="uploadQueueGrid">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div class="pagination" id="uploadQueuePagination">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+    </section>
+
+    <!-- ------------------------------------------------------------- -->
+    <!-- TAB: 24-HOUR WALLPAPER PANEL -->
+    <!-- ------------------------------------------------------------- -->
+    <section id="tab-24h" class="tab-content">
+      <div class="content-section">
+        <h3 class="section-title"><i class="fas fa-clock"></i> 24-Hour Wallpaper Set</h3>
+        <p class="upload-24h-intro">Upload the <b>same artwork in 4 time-of-day versions</b> — Morning, Afternoon, Evening &amp; Night. Zedge rotates them automatically through the day. Images are auto-resized to 1620×2880 JPEG (max 8 MB each).</p>
+        <div class="upload-24h-grid">
+          <label class="slot-24h" data-slot="morning" for="slot24hInput-morning">
+            <div class="slot-24h-preview" id="slot24hPreview-morning"><i class="fas fa-cloud-sun"></i></div>
+            <span class="slot-24h-label">Morning</span>
+            <input type="file" id="slot24hInput-morning" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" style="display: none;" />
+          </label>
+          <label class="slot-24h" data-slot="afternoon" for="slot24hInput-afternoon">
+            <div class="slot-24h-preview" id="slot24hPreview-afternoon"><i class="fas fa-sun"></i></div>
+            <span class="slot-24h-label">Afternoon</span>
+            <input type="file" id="slot24hInput-afternoon" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" style="display: none;" />
+          </label>
+          <label class="slot-24h" data-slot="evening" for="slot24hInput-evening">
+            <div class="slot-24h-preview" id="slot24hPreview-evening"><i class="fas fa-cloud-moon"></i></div>
+            <span class="slot-24h-label">Evening</span>
+            <input type="file" id="slot24hInput-evening" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" style="display: none;" />
+          </label>
+          <label class="slot-24h" data-slot="night" for="slot24hInput-night">
+            <div class="slot-24h-preview" id="slot24hPreview-night"><i class="fas fa-moon"></i></div>
+            <span class="slot-24h-label">Night</span>
+            <input type="file" id="slot24hInput-night" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" style="display: none;" />
+          </label>
+        </div>
+        <div class="upload-24h-footer">
+          <div class="upload-24h-status" id="upload24hStatus">Select all four time-of-day images to enable upload.</div>
+          <button type="button" class="dropzone-btn" id="upload24hBtn" disabled><i class="fas fa-cloud-upload-alt"></i> Upload 24H Set</button>
+        </div>
+      </div>
+
+      <section class="content-section">
+        <div class="queue-header">
+          <h3 class="section-title" style="margin-bottom: 0;"><i class="fas fa-layer-group"></i> 24H Sets in Queue</h3>
+          <div class="queue-count-wrap" id="queue24hCount"></div>
+        </div>
+
+        <div class="queue-grid" id="queue24hGrid">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+    </section>
+
+    <!-- ------------------------------------------------------------- -->
+    <!-- TAB 3: SCHEDULE CALENDAR PANEL -->
+    <!-- ------------------------------------------------------------- -->
+    <section id="tab-schedule" class="tab-content">
+      <div class="calendar-stats" id="calendarLegendState">
+        <!-- Renders stats summary -->
+      </div>
+
+      <section class="content-section">
+        <h3 class="section-title"><i class="fas fa-calendar-check"></i> Publishing Layout Planner</h3>
+        <div class="calendar-board">
+          <div class="calendar-grid" id="calendarDaysGrid">
+            <!-- Days rendered dynamically -->
+          </div>
+        </div>
+        <div class="pagination" id="calendarPager">
+          <!-- Pagination triggers -->
+        </div>
+      </section>
+    </section>
+
+    <!-- ------------------------------------------------------------- -->
+    <!-- TAB 4: DISTRIBUTE IMAGE PANEL -->
+    <!-- ------------------------------------------------------------- -->
+    <section id="tab-distribute" class="tab-content">
+      <div class="content-section distribute-wrapper">
+        <h3 class="section-title" style="justify-content: center;"><i class="fas fa-diagram-project"></i> Multi-Account Distribution</h3>
+        <p class="distribute-intro">Load wallpaper images into your round-robin automation pipe. Media distributes evenly across Zedge accounts in order.</p>
+
+        <!-- Cute Node Flow Chart -->
+        <div class="flow-nodes">
+          <div class="flow-node-wrap">
+            <div class="flow-bubble"><i class="fas fa-database"></i></div>
+            <span class="flow-node-label">ZEDGE 1</span>
+          </div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node-wrap">
+            <div class="flow-bubble"><i class="fas fa-database"></i></div>
+            <span class="flow-node-label">ZEDGE 2</span>
+          </div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node-wrap">
+            <div class="flow-bubble"><i class="fas fa-database"></i></div>
+            <span class="flow-node-label">ZEDGE 3</span>
+          </div>
+        </div>
+
+        <div class="distribution-progress-track">
+          <div class="distribution-progress-fill" id="distributeProgressFill"></div>
+        </div>
+
+        <div class="distribution-status-text" id="distributeStatusText">Waiting for image selection...</div>
+
+        <div class="cute-dropzone" id="distributeDropzone" style="max-width: 580px; margin: 12px auto 20px;">
+          <span class="dropzone-icon"><i class="fas fa-images"></i></span>
+          <h3>Select distribution wallpaper files</h3>
+          <p>Drag images or browse from folders</p>
+          <small>Supported formats: JPG/JPEG/PNG. Files automatically resized to 1620x2880.</small>
+          <button type="button" class="dropzone-btn" id="distributeChooseBtn">Select Images</button>
+          <input type="file" id="distributeFilesInput" accept="image/jpeg,image/jpg,image/png,.jpg,.jpeg,.png" multiple style="display: none;" />
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- UNIFIED MODAL DIALOG (PREVIEW & EDIT METADATA) -->
+  <!-- ------------------------------------------------------------- -->
+  <div class="modal-overlay" id="unifiedItemModal" role="dialog" aria-modal="true" aria-labelledby="modalItemTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <h3 id="modalItemTitle">Asset details</h3>
+          <p>Modify publishing fields and review storage reference metadata</p>
+        </div>
+        <button class="modal-close-btn" id="modalCloseBtnHeader" aria-label="Close modal"><i class="fas fa-times"></i></button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="modal-body-layout">
+          <!-- Left Column: Media Preview + Meta Badges -->
+          <div class="modal-body-left">
+            <div class="modal-preview-frame">
+              <img id="modalPreviewImg" alt="Interactive Preview" />
+              <div id="modal24hInteractive" class="modal-24h-interactive" style="display: none;">
+                <div class="time-selector">
+                  <button class="time-btn" data-slot="morning"><i class="fas fa-sun"></i> Morning</button>
+                  <button class="time-btn" data-slot="afternoon"><i class="fas fa-cloud-sun"></i> Afternoon</button>
+                  <button class="time-btn" data-slot="evening"><i class="fas fa-cloud-moon"></i> Evening</button>
+                  <button class="time-btn" data-slot="night"><i class="fas fa-moon"></i> Night</button>
+                </div>
+                <div class="time-preview">
+                  <img id="modal24hPreviewImg" src="" alt="Time Preview" />
+                </div>
+              </div>
+              <!-- Creative Audio Visualizer -->
+              <div id="modalAudioVisualizer" class="audio-visualizer-container" style="display: none;">
+                <div class="waveform-animation">
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                </div>
+                <div class="audio-track-info">
+                  <i class="fas fa-music"></i>
+                  <span id="audioTrackName">Track.mp3</span>
+                </div>
+              </div>
+              <audio id="modalPreviewAudio" controls></audio>
+            </div>
+            
+            <div class="modal-meta-grid" id="modalMetaInfo">
+              <!-- Populated dynamically with colorful status badges and tags -->
+            </div>
+          </div>
+
+          <!-- Right Column: Editing Fields Form -->
+          <div class="modal-body-right">
+            <button type="button" class="ai-generate-btn" id="modalAiGenerateBtn"><i class="fas fa-wand-magic-sparkles"></i> Generate with AI</button>
+            <div class="ai-generate-status" id="aiGenerateStatus"></div>
+            <div class="modal-edit-form">
+              <div class="modal-field-wrap">
+                <label for="modalEditTitle"><i class="fas fa-heading"></i> Item Title</label>
+                <input type="text" id="modalEditTitle" class="modal-input" placeholder="Title used in publishing" />
+              </div>
+              <div class="modal-field-wrap">
+                <label for="modalEditTags"><i class="fas fa-tags"></i> Search Tags</label>
+                <input type="text" id="modalEditTags" class="modal-input" placeholder="Tags (e.g. cute, neon, cartoon)" />
+              </div>
+              <div class="modal-field-wrap">
+                <label for="modalEditCategory"><i class="fas fa-folder-open"></i> Main Category</label>
+                <input type="text" id="modalEditCategory" class="modal-input" placeholder="CATEGORY (Upper Case)" />
+              </div>
+              <div class="modal-field-wrap">
+                <label for="modalEditDescription"><i class="fas fa-align-left"></i> Publishing Description</label>
+                <textarea id="modalEditDescription" class="modal-textarea" rows="4" placeholder="Describe the media context..."></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="modal-btn modal-btn-save" id="modalSaveBtn"><i class="fas fa-save"></i> Save Changes</button>
+        <button type="button" class="modal-btn modal-btn-emergency" id="modalEmergencyBtn" style="background: #e74c3c; color: white; border: none; font-weight: bold;"><i class="fas fa-bolt"></i> Emergency Publish</button>
+        <button type="button" class="modal-btn modal-btn-requeue" id="modalRequeueBtn"><i class="fas fa-rotate-right"></i> Requeue</button>
+        <button type="button" class="modal-btn modal-btn-delete" id="modalDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+        <button type="button" class="modal-btn modal-btn-close" id="modalCloseBtnFooter">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- PREMIUM IMAGE FOCUS/ZOOM DIALOG -->
+  <!-- ------------------------------------------------------------- -->
+  <div class="focus-overlay" id="premiumZoomModal" role="dialog" aria-modal="true" aria-labelledby="zoomTargetTitle">
+    <div class="focus-box">
+      <div class="focus-top">
+        <div class="focus-headline" id="zoomTargetTitle">Image Preview</div>
+        <div class="focus-control-buttons">
+          <button type="button" class="focus-control-btn" id="zoomOutBtn" title="Zoom Out"><i class="fas fa-minus"></i></button>
+          <button type="button" class="focus-control-btn" id="zoomResetBtn" title="Reset Scale">100%</button>
+          <button type="button" class="focus-control-btn" id="zoomInBtn" title="Zoom In"><i class="fas fa-plus"></i></button>
+          <button type="button" class="focus-control-btn focus-close-icon" id="zoomCloseBtn" title="Close Overlay"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="focus-view-area" id="zoomViewArea">
+        <img id="zoomTargetImg" alt="Focused Preview" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------------------- -->
+  <!-- SETTINGS MODAL (Gemini AI Configuration) -->
+  <!-- ------------------------------------------------------------- -->
+  <div class="modal-overlay" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsModalTitle">
+    <div class="modal-box" style="max-width: 480px;">
+      <div class="modal-header">
+        <div class="modal-title-area">
+          <h3 id="settingsModalTitle"><i class="fas fa-wand-magic-sparkles"></i> AI Settings</h3>
+          <p>Configure Mistral API for auto metadata generation</p>
+        </div>
+        <button class="modal-close-btn" id="settingsCloseBtn" aria-label="Close settings"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-edit-form">
+          <div class="modal-field-wrap">
+            <label for="settingsApiKey"><i class="fas fa-key"></i> Mistral API Keys (one per line)</label>
+            <textarea id="settingsApiKey" class="modal-textarea" rows="6" placeholder="Paste your API keys here, one per line...&#10;wXFCsmmPgZb0KBYDQb1v...&#10;NAsd2c2R58SWPd8x9XnZ...&#10;etc." style="font-family: monospace; font-size: 12px;"></textarea>
+            <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px;">Keys auto-rotate on failure. Get free key from <a href="https://console.mistral.ai/api-keys/" target="_blank" style="color: #6c5ce7; font-weight: 700;">Mistral Console</a></small>
+          </div>
+          <div class="modal-field-wrap">
+            <label for="settingsModel"><i class="fas fa-brain"></i> Mistral Model</label>
+            <select id="settingsModel" class="pro-select" style="background: #f8fafc; color: var(--text-color); border: 2px solid #e2e8f0; width: 100%; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 600; cursor: pointer;">
+              <option value="mistral-small-latest">mistral-small-latest (Fast)</option>
+              <option value="mistral-medium-latest">mistral-medium-latest (Balanced)</option>
+              <option value="mistral-large-latest">mistral-large-latest (Most Capable)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="modal-btn modal-btn-save" id="settingsSaveBtn"><i class="fas fa-save"></i> Save Settings</button>
+        <button type="button" class="modal-btn modal-btn-close" id="settingsCloseFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inline Core Script Module to handle Firebase connectivity and data parsing -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+    import { getDatabase, ref, get, onValue, update, remove, push, set, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+    // Firebase Configurations
+    const configs = {
+      zedge1: { 
+        apiKey: "AIzaSyBsoxNIpAECkPaFOU0wUHY6q0NcvWbK4AI", 
+        authDomain: "zedge-r2-edward-hermes.firebaseapp.com", 
+        databaseURL: "https://zedge-r2-edward-hermes-default-rtdb.firebaseio.com", 
+        projectId: "zedge-r2-edward-hermes", 
+        storageBucket: "zedge-r2-edward-hermes.firebasestorage.app", 
+        messagingSenderId: "539346447692", 
+        appId: "1:539346447692:web:dc9d1f1b8f90ca5f7133e9", 
+        measurementId: "G-838FST5ZKT" 
+      },
+      zedge2: { 
+        apiKey: "AIzaSyBW7Pm5Eegg90htCAcnMZXT5kLCQ2bSxEc", 
+        authDomain: "zedge-r2-ryan-hermes.firebaseapp.com", 
+        databaseURL: "https://zedge-r2-ryan-hermes-default-rtdb.firebaseio.com", 
+        projectId: "zedge-r2-ryan-hermes", 
+        storageBucket: "zedge-r2-ryan-hermes.firebasestorage.app", 
+        messagingSenderId: "347245367374", 
+        appId: "1:347245367374:web:1a2f6f9e956f263059331f", 
+        measurementId: "G-HSH0DF6J9B" 
+      },
+      zedge3: {
+        apiKey: "AIzaSyCgjmRx6pwEf5QJQxjOOy4TYGA6tZScD3Y",
+        authDomain: "zedge-r2-christian-hermes.firebaseapp.com",
+        databaseURL: "https://zedge-r2-christian-hermes-default-rtdb.firebaseio.com",
+        projectId: "zedge-r2-christian-hermes",
+        storageBucket: "zedge-r2-christian-hermes.firebasestorage.app",
+        messagingSenderId: "927102645505",
+        appId: "1:927102645505:web:44cf6feaaf6456716b1700",
+        measurementId: "G-ZWHPK4ZKDQ"
+      }
+    };
+
+    const R2_WORKER_URL = "https://proud-paper-6fd7.monjurulgd2001.workers.dev/";
+
+    // Initialize Firebase Apps
+    const apps = {
+      zedge1: initializeApp(configs.zedge1, "spaZedge1"),
+      zedge2: initializeApp(configs.zedge2, "spaZedge2"),
+      zedge3: initializeApp(configs.zedge3, "spaZedge3")
+    };
+
+    const dbs = {
+      zedge1: getDatabase(apps.zedge1),
+      zedge2: getDatabase(apps.zedge2),
+      zedge3: getDatabase(apps.zedge3)
+    };
+
+    // Global App States
+    let activeProject = "zedge1";
+    try {
+      activeProject = localStorage.getItem("activeProject") || "zedge1";
+    } catch(e) {
+      console.warn("localStorage is not available: ", e);
+    }
+    if (!configs[activeProject]) activeProject = "zedge1";
+
+    let queueItems = [];
+    let uploadState = null;
+    let currentModalItem = null;
+
+    // Firebase listeners references to release later
+    let queueListenerUnsub = null;
+    let stateListenerUnsub = null;
+
+    // UI States
+    let uploadCurrentPage = 1;
+    const uploadPerPage = 12;
+
+    let scheduleCalPage = 1;
+    const scheduleDaysPerPage = 28; // Multiples of 7 to align with weeks nicely
+    let scheduleBuiltDays = [];
+
+    // Helper: Format bytes
+    function formatBytes(bytes) {
+      if (!bytes) return "0 B";
+      const sizes = ["B", "KB", "MB"];
+      const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 2);
+      return `${(bytes / Math.pow(1024, i)).toFixed(2)} ${sizes[i]}`;
+    }
+
+    // Helper: Check if mp3 file
+    function isMp3(item) {
+      return !!item.isMp3 || (item.name || "").toLowerCase().endsWith(".mp3");
+    }
+
+    // Helper: Check if 24-hour wallpaper set
+    function is24h(item) {
+      return !!item.is24h;
+    }
+
+    // 24H wallpaper set slot definitions
+    const SLOTS_24H = ["morning", "afternoon", "evening", "night"];
+    const SLOT_LABELS_24H = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", night: "Night" };
+    let selected24hFiles = { morning: null, afternoon: null, evening: null, night: null };
+
+    // Dhaka Time Offset Helpers
+    function dhakaTodayString() {
+      return new Date().toLocaleString("en-US", { timeZone: "Asia/Dhaka" }).split(",")[0];
+    }
+    function getDhakaDate(offsetDays = 0) {
+      const d = new Date();
+      const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+      const dt = new Date(utc + 6 * 3600000); // UTC+6
+      dt.setDate(dt.getDate() + offsetDays);
+      return dt;
+    }
+
+    // Initialize Router & Tab management
+    function setupRouter() {
+      const tabs = document.querySelectorAll(".tab-content");
+      const navButtons = document.querySelectorAll(".tab-btn");
+
+      function navigateTo(targetHash) {
+        const hash = targetHash || "#home";
+        tabs.forEach(tab => {
+          tab.classList.remove("active");
+          if (tab.id === `tab-${hash.replace("#", "")}`) {
+            tab.classList.add("active");
+          }
+        });
+
+        navButtons.forEach(btn => {
+          btn.classList.remove("active");
+          if (btn.getAttribute("data-tab") === hash.replace("#", "")) {
+            btn.classList.add("active");
+          }
+        });
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+
+      window.addEventListener("hashchange", () => {
+        navigateTo(window.location.hash);
+      });
+
+      // Load initial route
+      navigateTo(window.location.hash);
+
+      // Set click handlers for nav
+      navButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          window.location.hash = btn.getAttribute("data-tab");
+        });
+      });
+    }
+
+    // Database Connection Manager
+    async function connectToDatabase(projectId) {
+      activeProject = projectId;
+      try {
+        localStorage.setItem("activeProject", projectId);
+      } catch(e) {}
+  
+      // Update Header select input in case it was triggered programmatically
+      document.getElementById("activeZedgeAccount").value = projectId;
+
+      // Unsubscribe previous listeners
+      if (queueListenerUnsub) queueListenerUnsub();
+      if (stateListenerUnsub) stateListenerUnsub();
+
+      // Show Tab Sub-Loader while connecting
+      toggleTabLoader(true);
+
+      const db = dbs[projectId];
+      const queueRef = ref(db, "wallpaperQueue");
+      const stateRef = ref(db, "uploadState");
+
+      // Hook State Listener
+      stateListenerUnsub = onValue(stateRef, (snapshot) => {
+        uploadState = snapshot.val() || null;
+        processAndRenderAll();
+      });
+
+      // Hook Queue Listener
+      queueListenerUnsub = onValue(queueRef, (snapshot) => {
+        const data = snapshot.val() || {};
+        queueItems = Object.entries(data).map(([id, val]) => ({ id, ...(val || {}) }));
+    
+        // Hide App-level Loader on initial data fetch success
+        const mainLoader = document.getElementById("appLoader");
+        if (mainLoader && !mainLoader.classList.contains("loaded")) {
+          setTimeout(() => {
+            mainLoader.classList.add("loaded");
+          }, 600);
+        }
+
+        toggleTabLoader(false);
+        processAndRenderAll();
+      });
+    }
+
+    function toggleTabLoader(show) {
+      const subLoader = document.getElementById("tabSubLoader");
+      if (subLoader) {
+        subLoader.style.display = show ? "flex" : "none";
+      }
+    }
+
+    // Re-render UI components on data changes
+    function processAndRenderAll() {
+      updateDashboardStats();
+      renderUploadQueue();
+      buildScheduleCalendar();
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 1: Dashboard / Home Section
+    // -------------------------------------------------------------
+    function updateDashboardStats() {
+      const total = queueItems.length;
+      const audio = queueItems.filter(i => isMp3(i)).length;
+      const wallpaper = total - audio;
+
+      const queuedTotal = queueItems.filter(i => (i.status || "queued") === "queued").length;
+  
+      // Dashboard indicators
+      document.getElementById("statDbName").textContent = activeProject.toUpperCase();
+      document.getElementById("statTotalQueued").textContent = queuedTotal;
+      document.getElementById("statTotalAudios").textContent = audio;
+      document.getElementById("statTotalWallpapers").textContent = wallpaper;
+
+      // Render quick overview card list on Home
+      const recentGrid = document.getElementById("recentItemsGrid");
+      if (!recentGrid) return;
+      recentGrid.innerHTML = "";
+
+      const recent = [...queueItems]
+        .sort((a, b) => (b.id || "").localeCompare(a.id || ""))
+        .slice(0, 4);
+
+      if (recent.length === 0) {
+        recentGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--text-muted);font-size:14px;">No files uploaded in this database yet. Drag some into the Upload Queue!</div>`;
+        return;
+      }
+
+      recent.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "queue-card";
+        const tags = (item.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `<span class="cute-tag">${t}</span>`).join("");
+        const statusClass = item.status || "queued";
+    
+        card.innerHTML = `
+          <div class="card-media-wrap">
+            ${isMp3(item) 
+              ? `<div class="card-audio-placeholder">
+                  <div class="vinyl-container">
+                    <div class="vinyl-sleeve">
+                      <i class="fas fa-music note-icon"></i>
+                    </div>
+                    <div class="vinyl-disc">
+                      <div class="vinyl-label">
+                        <div class="vinyl-center"></div>
+                      </div>
+                    </div>
+                  </div>
+                 </div>` 
+              : `<img class="card-thumbnail" src="${item.fileUrl || ''}" alt="preview" loading="lazy" />`
+            }
+            <div class="card-status ${statusClass}">${statusClass}</div>${is24h(item) ? '<div class="badge-24h"><i class="fas fa-clock"></i> 24H</div>' : ''}${item.isEmergency ? '<div class="badge-emergency" style="position:absolute; top:8px; left:8px; background:#e74c3c; color:#fff; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; z-index:10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-bolt"></i> EMERGENCY</div>' : ''}
+          </div>
+          <div class="card-content">
+            <div class="card-title">${item.title?.trim() || item.name || "Unnamed"}</div>
+            <div class="card-info">
+              <span><i class="far fa-hdd"></i> ${formatBytes(item.size)}</span>
+              <span><i class="far fa-folder"></i> ${item.category || "-"}</span>
+            </div>
+            ${tags ? `<div class="card-tags">${tags}</div>` : ""}
+          </div>
+        `;
+        card.addEventListener("click", () => openModal(item.id));
+        recentGrid.appendChild(card);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 2: Upload Queue Section
+    // -------------------------------------------------------------
+    function renderUploadQueue() {
+      const grid = document.getElementById("uploadQueueGrid");
+      const countEl = document.getElementById("uploadQueueCount");
+      const paginationEl = document.getElementById("uploadQueuePagination");
+
+      if (!grid || !countEl || !paginationEl) return;
+
+      // 24H sets live in their own tab now — render that grid too, and keep them out of this list.
+      render24hQueue();
+
+      const sorted = [...queueItems].filter(i => !is24h(i)).sort((a, b) => (b.id || "").localeCompare(a.id || ""));
+      const audioLeft = sorted.filter(i => isMp3(i) && (i.status || "queued") === "queued").length;
+      const imageLeft = sorted.filter(i => !isMp3(i) && (i.status || "queued") === "queued").length;
+
+      countEl.innerHTML = `
+        <span class="queue-pill image-pill" title="Image wallpapers queued"><i class="fas fa-images"></i> Wallpapers: <b>${imageLeft}</b></span>
+        <span class="queue-pill audio-pill" title="Audio tracks queued"><i class="fas fa-music"></i> Audios: <b>${audioLeft}</b></span>
+        <span class="queue-pill total-pill" title="Total items in database"><i class="fas fa-server"></i> Total: <b>${sorted.length}</b></span>
+      `;
+
+      const totalPages = Math.max(1, Math.ceil(sorted.length / uploadPerPage));
+      if (uploadCurrentPage > totalPages) uploadCurrentPage = totalPages;
+
+      const start = (uploadCurrentPage - 1) * uploadPerPage;
+      const slice = sorted.slice(start, start + uploadPerPage);
+
+      grid.innerHTML = "";
+      if (slice.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);font-size:14px;"><i class="fas fa-box-open" style="font-size:36px;margin-bottom:12px;color:#cbd5e1;"></i><br>Queue is empty. Select files to upload above!</div>`;
+        paginationEl.innerHTML = "";
+        return;
+      }
+
+      slice.forEach(item => {
+        const statusClass = item.status || "queued";
+        const card = document.createElement("div");
+        card.className = "queue-card";
+        const tags = (item.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `<span class="cute-tag">${t}</span>`).join("");
+
+        card.innerHTML = `
+          <div class="card-media-wrap">
+            ${isMp3(item)
+              ? `<div class="card-audio-placeholder">
+                  <div class="vinyl-container">
+                    <div class="vinyl-sleeve">
+                      <i class="fas fa-music note-icon"></i>
+                    </div>
+                    <div class="vinyl-disc">
+                      <div class="vinyl-label">
+                        <div class="vinyl-center"></div>
+                      </div>
+                    </div>
+                  </div>
+                 </div>`
+              : `<img class="card-thumbnail" src="${item.fileUrl || ''}" alt="thumb" loading="lazy" />`
+            }
+            <div class="card-status ${statusClass}">${statusClass}</div>${is24h(item) ? '<div class="badge-24h"><i class="fas fa-clock"></i> 24H</div>' : ''}${item.isEmergency ? '<div class="badge-emergency" style="position:absolute; top:8px; left:8px; background:#e74c3c; color:#fff; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; z-index:10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-bolt"></i> EMERGENCY</div>' : ''}
+          </div>
+          <div class="card-content">
+            <div class="card-title">${item.title?.trim() || item.name || "Unnamed"}</div>
+            <div class="card-info">
+              <span><i class="far fa-hdd"></i> ${formatBytes(item.size)}</span>
+              <span><i class="far fa-folder"></i> ${item.category || "-"}</span>
+            </div>
+            ${tags ? `<div class="card-tags">${tags}</div>` : ""}
+          </div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-edit"><i class="fas fa-edit"></i> Edit</button>
+            <button class="card-btn card-btn-delete"><i class="fas fa-trash-alt"></i> Delete</button>
+          </div>
+        `;
+
+        card.querySelector(".card-btn-edit").addEventListener("click", (e) => {
+          e.stopPropagation();
+          openModal(item.id);
+        });
+
+        card.querySelector(".card-btn-delete").addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteQueueItem(item.id, item.name);
+        });
+
+        card.addEventListener("click", () => openModal(item.id));
+        grid.appendChild(card);
+      });
+
+      renderUploadPagination(totalPages);
+    }
+
+    function render24hQueue() {
+      const grid = document.getElementById("queue24hGrid");
+      const countEl = document.getElementById("queue24hCount");
+      if (!grid || !countEl) return;
+
+      const sets = [...queueItems].filter(i => is24h(i)).sort((a, b) => (b.id || "").localeCompare(a.id || ""));
+      const queuedLeft = sets.filter(i => (i.status || "queued") === "queued").length;
+
+      countEl.innerHTML = `
+        <span class="queue-pill h24-pill" title="24-hour wallpaper sets queued"><i class="fas fa-clock"></i> Queued: <b>${queuedLeft}</b></span>
+        <span class="queue-pill total-pill" title="Total 24H sets in database"><i class="fas fa-server"></i> Total: <b>${sets.length}</b></span>
+      `;
+
+      grid.innerHTML = "";
+      if (sets.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:var(--text-muted);font-size:14px;"><i class="fas fa-clock" style="font-size:36px;margin-bottom:12px;color:#cbd5e1;"></i><br>No 24H sets yet. Fill the four slots above to upload your first set!</div>`;
+        return;
+      }
+
+      const slotOrder = ["morning", "afternoon", "evening", "night"];
+
+      sets.forEach(item => {
+        const statusClass = item.status || "queued";
+        const card = document.createElement("div");
+        card.className = "queue-card";
+        const tags = (item.tags || "").split(",").map(t => t.trim()).filter(Boolean).map(t => `<span class="cute-tag">${t}</span>`).join("");
+
+        const strip = item.fileUrls
+          ? `<div class="card-24h-strip">${slotOrder.map(slot => `<img src="${item.fileUrls[slot] || item.fileUrl || ''}" alt="${slot}" loading="lazy" />`).join("")}</div>`
+          : `<img class="card-thumbnail" src="${item.fileUrl || ''}" alt="thumb" loading="lazy" />`;
+
+        card.innerHTML = `
+          <div class="card-media-wrap">
+            ${strip}
+            <div class="card-status ${statusClass}">${statusClass}</div>
+            <div class="badge-24h"><i class="fas fa-clock"></i> 24H</div>
+            ${item.isEmergency ? '<div class="badge-emergency" style="position:absolute; top:8px; left:8px; background:#e74c3c; color:#fff; padding:4px 8px; border-radius:12px; font-size:10px; font-weight:bold; z-index:10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"><i class="fas fa-bolt"></i> EMERGENCY</div>' : ''}
+          </div>
+          <div class="card-content">
+            <div class="card-title">${item.title?.trim() || item.name || "Unnamed"}</div>
+            <div class="card-info">
+              <span><i class="far fa-hdd"></i> ${formatBytes(item.size)}</span>
+              <span><i class="far fa-folder"></i> ${item.category || "-"}</span>
+            </div>
+            ${tags ? `<div class="card-tags">${tags}</div>` : ""}
+          </div>
+          <div class="card-actions">
+            <button class="card-btn card-btn-edit"><i class="fas fa-edit"></i> Edit</button>
+            <button class="card-btn card-btn-delete"><i class="fas fa-trash-alt"></i> Delete</button>
+          </div>
+        `;
+
+        card.querySelector(".card-btn-edit").addEventListener("click", (e) => {
+          e.stopPropagation();
+          openModal(item.id);
+        });
+
+        card.querySelector(".card-btn-delete").addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteQueueItem(item.id, item.name);
+        });
+
+        card.addEventListener("click", () => openModal(item.id));
+        grid.appendChild(card);
+      });
+    }
+
+    function renderUploadPagination(totalPages) {
+      const container = document.getElementById("uploadQueuePagination");
+      if (!container) return;
+      container.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      const prev = document.createElement("button");
+      prev.className = "pag-btn";
+      prev.innerHTML = `<i class="fas fa-chevron-left"></i>`;
+      prev.disabled = uploadCurrentPage === 1;
+      prev.addEventListener("click", () => {
+        uploadCurrentPage--;
+        renderUploadQueue();
+      });
+      container.appendChild(prev);
+
+      // Determine which page numbers to display (active, surrounding, and boundaries)
+      const range = 1;
+      const pagesToDraw = [];
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= uploadCurrentPage - range && i <= uploadCurrentPage + range)) {
+          pagesToDraw.push(i);
+        }
+      }
+
+      // Draw pagination items, inserting ellipses where gaps exist
+      let prevPage = 0;
+      for (const page of pagesToDraw) {
+        if (prevPage > 0) {
+          if (page - prevPage === 2) {
+            // Gap of exactly 1 page: just draw that page instead of an ellipsis
+            createPageButton(prevPage + 1);
+          } else if (page - prevPage > 2) {
+            // Larger gap: draw an ellipsis spacer
+            const dots = document.createElement("span");
+            dots.className = "pag-dots";
+            dots.textContent = "...";
+            container.appendChild(dots);
+          }
+        }
+        createPageButton(page);
+        prevPage = page;
+      }
+
+      function createPageButton(pageNum) {
+        const btn = document.createElement("button");
+        btn.className = "pag-btn" + (pageNum === uploadCurrentPage ? " active" : "");
+        btn.textContent = pageNum;
+        btn.addEventListener("click", () => {
+          uploadCurrentPage = pageNum;
+          renderUploadQueue();
+        });
+        container.appendChild(btn);
+      }
+
+      const next = document.createElement("button");
+      next.className = "pag-btn";
+      next.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+      next.disabled = uploadCurrentPage === totalPages;
+      next.addEventListener("click", () => {
+        uploadCurrentPage++;
+        renderUploadQueue();
+      });
+      container.appendChild(next);
+    }
+
+    // -------------------------------------------------------------
+    // MODULE 3: Schedule Calendar Section
+    // -------------------------------------------------------------
+    function computeScheduleStats() {
+      const today = dhakaTodayString();
+      let type = "AUDIO";
+      let remaining = 3;
+      let uploadedToday = 0;
+
+      if (uploadState) {
+        if (uploadState.lastUploadDate === today) {
+          type = uploadState.uploadDayType || "WALLPAPER";
+          uploadedToday = uploadState.totalUploadsToday || 0;
+          remaining = Math.max(0, 3 - uploadedToday);
+        } else {
+          const prev = uploadState.uploadDayType || "AUDIO";
+          type = prev === "AUDIO" ? "WALLPAPER" : "AUDIO";
+          uploadedToday = 0;
+          remaining = 3;
+        }
+      }
+
+      return { type, remaining, uploadedToday };
+    }
+
+    function buildScheduleCalendar() {
+      const legendState = document.getElementById("calendarLegendState");
+      const calendarGrid = document.getElementById("calendarDaysGrid");
+      const pagerEl = document.getElementById("calendarPager");
+
+      if (!legendState || !calendarGrid || !pagerEl) return;
+
+      // 1. Separate queued elements
+      const queued = [...queueItems]
+        .filter(i => (i.status || "queued") === "queued")
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+      const audios = queued.filter(i => isMp3(i));
+      const wallpapers = queued.filter(i => !isMp3(i));
+
+      const rule = computeScheduleStats();
+
+      // 2. Render statistics legend bar
+      legendState.innerHTML = `
+        <div class="calendar-stat-card db">
+          <div class="calendar-stat-icon-wrap"><i class="fas fa-database"></i></div>
+          <div class="calendar-stat-info">
+            <span class="calendar-stat-label">Active DB</span>
+            <span class="calendar-stat-value">${activeProject.toUpperCase()}</span>
+          </div>
+        </div>
+        <div class="calendar-stat-card remaining">
+          <div class="calendar-stat-icon-wrap"><i class="fas fa-hourglass-half"></i></div>
+          <div class="calendar-stat-info">
+            <span class="calendar-stat-label">Remaining Today</span>
+            <span class="calendar-stat-value">${rule.remaining} slot(s)</span>
+          </div>
+        </div>
+        <div class="calendar-stat-card uploaded">
+          <div class="calendar-stat-icon-wrap"><i class="fas fa-cloud-upload-alt"></i></div>
+          <div class="calendar-stat-info">
+            <span class="calendar-stat-label">Uploaded Today</span>
+            <span class="calendar-stat-value">${rule.uploadedToday} / 3</span>
+          </div>
+        </div>
+        <div class="calendar-stat-card audio">
+          <div class="calendar-stat-icon-wrap"><i class="fas fa-music"></i></div>
+          <div class="calendar-stat-info">
+            <span class="calendar-stat-label">Audio Queue</span>
+            <span class="calendar-stat-value">${audios.length} items</span>
+          </div>
+        </div>
+        <div class="calendar-stat-card wallpaper">
+          <div class="calendar-stat-icon-wrap"><i class="fas fa-image"></i></div>
+          <div class="calendar-stat-info">
+            <span class="calendar-stat-label">Wallpapers</span>
+            <span class="calendar-stat-value">${wallpapers.length} items</span>
+          </div>
+        </div>
+      `;
+
+      // 3. Build scheduled days
+      let currentDayType = rule.type;
+      let audioIdx = 0;
+      let wallpaperIdx = 0;
+      let dayIdx = 0;
+      const daysOut = [];
+      const maxDays = 700; // Cap loop safety
+
+      while ((dayIdx < 28 || (audioIdx < audios.length || wallpaperIdx < wallpapers.length)) && dayIdx < maxDays) {
+        if (dayIdx > 0) {
+          currentDayType = currentDayType === "AUDIO" ? "WALLPAPER" : "AUDIO";
+        }
+        const slotLimit = dayIdx === 0 ? rule.remaining : 3;
+        const slots = [];
+
+        for (let s = 0; s < slotLimit; s++) {
+          let allocated = null;
+          if (currentDayType === "AUDIO") {
+            allocated = audioIdx < audios.length ? audios[audioIdx++] : null;
+          } else {
+            allocated = wallpaperIdx < wallpapers.length ? wallpapers[wallpaperIdx++] : null;
+          }
+          slots.push(allocated);
+        }
+
+        daysOut.push({
+          index: dayIdx,
+          date: getDhakaDate(dayIdx),
+          isToday: dayIdx === 0,
+          dayType: currentDayType,
+          slotCount: slotLimit,
+          slots
+        });
+        dayIdx++;
+      }
+
+      scheduleBuiltDays = daysOut;
+
+      // 4. Render current calendar page
+      const totalPages = Math.max(1, Math.ceil(scheduleBuiltDays.length / scheduleDaysPerPage));
+      if (scheduleCalPage > totalPages) scheduleCalPage = totalPages;
+
+      const start = (scheduleCalPage - 1) * scheduleDaysPerPage;
+      const pageDays = scheduleBuiltDays.slice(start, start + scheduleDaysPerPage);
+
+      calendarGrid.innerHTML = "";
+      pageDays.forEach(dObj => {
+        const col = document.createElement("div");
+        col.className = "calendar-day-col" + (dObj.isToday ? " today-column" : "");
+    
+        const weekday = dObj.date.toLocaleDateString("en-US", { weekday: "short" });
+        const dateNum = dObj.date.getDate();
+        const monthName = dObj.date.toLocaleDateString("en-US", { month: "short" });
+        const dayLabel = dObj.isToday ? "TODAY" : weekday.toUpperCase();
+    
+        col.innerHTML = `
+          <div class="calendar-card-header">
+            <div class="calendar-date-info">
+              <span class="calendar-date-num">${dateNum}</span>
+              <div class="calendar-date-meta">
+                <span class="calendar-day-name">${dayLabel}</span>
+                <span class="calendar-month-name">${monthName}</span>
+              </div>
+            </div>
+            <span class="day-badge-type ${dObj.dayType === "AUDIO" ? "audio" : "wall"}" title="${dObj.dayType === "AUDIO" ? 'Audio Day' : 'Wallpaper Day'}">
+              <i class="fas ${dObj.dayType === "AUDIO" ? "fa-music" : "fa-images"}"></i>
+            </span>
+          </div>
+        `;
+
+        if (dObj.slotCount === 0) {
+          const itemEl = document.createElement("div");
+          itemEl.className = "calendar-slot-completed";
+          itemEl.innerHTML = `
+            <div class="completed-icon"><i class="fas fa-check-circle"></i></div>
+            <div class="completed-text">All Uploads Done! 🎉</div>
+          `;
+          col.appendChild(itemEl);
+        } else {
+          dObj.slots.forEach(item => {
+            const itemEl = document.createElement("div");
+            if (!item) {
+              itemEl.className = "calendar-slot-empty";
+              itemEl.innerHTML = `
+                <span class="calendar-slot-icon"><i class="fas fa-plus"></i></span>
+                <span class="calendar-slot-text">Empty slot</span>
+              `;
+            } else {
+              const audioType = isMp3(item);
+              itemEl.className = `calendar-slot-item ${audioType ? 'audio-slot' : 'wall-slot'}`;
+              itemEl.innerHTML = `
+                <div class="slot-icon-container ${audioType ? 'audio' : 'wall'}">
+                  <i class="fas ${audioType ? 'fa-music' : 'fa-images'}"></i>
+                </div>
+                <span class="calendar-slot-text">${item.title?.trim() || item.name || "Unnamed"}</span>
+              `;
+              itemEl.addEventListener("click", () => openModal(item.id));
+            }
+            col.appendChild(itemEl);
+          });
+        }
+
+        calendarGrid.appendChild(col);
+      });
+
+      renderCalendarPagination(totalPages);
+    }
+
+    function renderCalendarPagination(totalPages) {
+      const container = document.getElementById("calendarPager");
+      if (!container) return;
+      container.innerHTML = "";
+
+      if (totalPages <= 1) return;
+
+      const prev = document.createElement("button");
+      prev.className = "pag-btn";
+      prev.innerHTML = `<i class="fas fa-chevron-left"></i>`;
+      prev.disabled = scheduleCalPage === 1;
+      prev.addEventListener("click", () => {
+        scheduleCalPage--;
+        buildScheduleCalendar();
+      });
+      container.appendChild(prev);
+
+      // Determine which page numbers to display (active, surrounding, and boundaries)
+      const range = 1;
+      const pagesToDraw = [];
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= scheduleCalPage - range && i <= scheduleCalPage + range)) {
+          pagesToDraw.push(i);
+        }
+      }
+
+      // Draw pagination items, inserting ellipses where gaps exist
+      let prevPage = 0;
+      for (const page of pagesToDraw) {
+        if (prevPage > 0) {
+          if (page - prevPage === 2) {
+            // Gap of exactly 1 page: just draw that page instead of an ellipsis
+            createPageButton(prevPage + 1);
+          } else if (page - prevPage > 2) {
+            // Larger gap: draw an ellipsis spacer
+            const dots = document.createElement("span");
+            dots.className = "pag-dots";
+            dots.textContent = "...";
+            container.appendChild(dots);
+          }
+        }
+        createPageButton(page);
+        prevPage = page;
+      }
+
+      function createPageButton(pageNum) {
+        const btn = document.createElement("button");
+        btn.className = "pag-btn" + (pageNum === scheduleCalPage ? " active" : "");
+        btn.textContent = pageNum;
+        btn.addEventListener("click", () => {
+          scheduleCalPage = pageNum;
+          buildScheduleCalendar();
+        });
+        container.appendChild(btn);
+      }
+
+      const next = document.createElement("button");
+      next.className = "pag-btn";
+      next.innerHTML = `<i class="fas fa-chevron-right"></i>`;
+      next.disabled = scheduleCalPage === totalPages;
+      next.addEventListener("click", () => {
+        scheduleCalPage++;
+        buildScheduleCalendar();
+      });
+      container.appendChild(next);
+    }
+
+
+    // -------------------------------------------------------------
+    // MODULE 4: Distribute Image Section (Round-Robin)
+    // -------------------------------------------------------------
+    const distOrder = ["zedge1", "zedge2", "zedge3"];
+    let distPointer = 0;
+
+    function updateDistributionVisualNodes() {
+      const bubbleElements = document.querySelectorAll(".flow-bubble");
+      bubbleElements.forEach((bubble, idx) => {
+        bubble.classList.remove("active-bubble");
+        if (idx === distPointer % distOrder.length) {
+          bubble.classList.add("active-bubble");
+        }
+      });
+    }
+
+    function setDistributionStatus(message, isOk = false) {
+      const statusEl = document.getElementById("distributeStatusText");
+      if (!statusEl) return;
+  
+      if (isOk) {
+        statusEl.innerHTML = `<span style="color:var(--success-gradient);font-weight:bold;"><i class="fas fa-check-circle"></i> ${message}</span>`;
+      } else if (message.includes("failed") || message.includes("Error")) {
+        statusEl.innerHTML = `<span style="color:#ff4757;font-weight:bold;"><i class="fas fa-exclamation-triangle"></i> ${message}</span>`;
+      } else {
+        statusEl.innerHTML = message;
+      }
+    }
+
+    async function handleDistributionUpload(files) {
+      const chooseBtn = document.getElementById("distributeChooseBtn");
+      const progressTrack = document.getElementById("distributeProgressFill");
+      if (!chooseBtn || !progressTrack) return;
+
+      chooseBtn.disabled = true;
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const isSupportedImage = ["image/jpeg", "image/jpg", "image/png"].includes(file.type) || /\.(jpg|jpeg|png)$/i.test(file.name);
+    
+        if (!isSupportedImage) {
+          continue; // Skip non-supported images
+        }
+
+        let fileName = file.name;
+        if (fileName.toLowerCase().endsWith(".png")) {
+          fileName = fileName.replace(/\.png$/i, ".jpg");
+        }
+
+        const targetDbKey = distOrder[distPointer % distOrder.length];
+    
+        // Update node visuals
+        updateDistributionVisualNodes();
+        setDistributionStatus(`Uploading image ${i + 1}/${files.length}: <b>${fileName}</b> → <span class="dest-label">${targetDbKey.toUpperCase()}</span>...`);
+
+        try {
+          // 1. Resize Image
+          const resizedBlob = await resizeImageTo1620x2880(file);
+      
+          // 2. Upload to Cloudflare R2
+          const fileUrl = await uploadToR2(resizedBlob, fileName, targetDbKey);
+
+          // 3. Save reference to target Firebase
+          const targetDb = dbs[targetDbKey];
+          const targetQueueRef = ref(targetDb, "wallpaperQueue");
+          const newItemRef = push(targetQueueRef);
+      
+          await set(newItemRef, {
+            name: fileName,
+            type: "image/jpeg",
+            size: resizedBlob.size,
+            width: 1620,
+            height: 2880,
+            isMp3: false,
+            fileUrl,
+            title: "",
+            tags: "",
+            category: "",
+            description: "",
+            status: "queued",
+            distributedTo: targetDbKey,
+            createdAt: serverTimestamp()
+          });
+
+          successCount++;
+          distPointer++; // Advance pointer
+        } catch (err) {
+          failCount++;
+          console.error("Distribution item upload error: ", err);
+        }
+
+        // Update Progress Fill
+        const pct = Math.round(((i + 1) / files.length) * 100);
+        progressTrack.style.width = `${pct}%`;
+      }
+
+      // Done distributing
+      chooseBtn.disabled = false;
+      progressTrack.style.width = "0%";
+      updateDistributionVisualNodes();
+  
+      if (failCount > 0) {
+        setDistributionStatus(`Distribution completed. ${successCount} successful, ${failCount} failed.`, false);
+      } else {
+        setDistributionStatus(`Successfully distributed all ${successCount} image(s)!`, true);
+      }
+
+      // Refresh current database queue too (if active DB was one of updated ones)
+      document.getElementById("distributeFilesInput").value = "";
+    }
+
+    // -------------------------------------------------------------
+    // CORE UPLOAD PIPELINE HELPERS
+    // -------------------------------------------------------------
+    function resizeImageTo1620x2880(file) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => {
+          URL.revokeObjectURL(url);
+          const TW = 1620, TH = 2880;
+          const canvas = document.createElement("canvas");
+          canvas.width = TW;
+          canvas.height = TH;
+          const ctx = canvas.getContext("2d");
+          const scale = Math.max(TW / img.width, TH / img.height);
+          const sw = img.width * scale;
+          const sh = img.height * scale;
+          ctx.drawImage(img, (TW - sw) / 2, (TH - sh) / 2, sw, sh);
+          canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Image canvas resize to blob failed")), "image/jpeg", 0.92);
+        };
+        img.onerror = () => reject(new Error("Image loader failed"));
+        img.src = url;
+      });
+    }
+
+    async function uploadToR2(blob, originalName, prefixFolder) {
+      const cleanedName = originalName.replace(/[^a-zA-Z0-9.-]/g, "_");
+      const destinationKey = `${prefixFolder}/${Date.now()}_${cleanedName}`;
+      const response = await fetch(R2_WORKER_URL, {
+        method: "POST",
+        headers: {
+          "X-File-Name": destinationKey,
+          "X-File-Type": blob.type || "image/jpeg"
+        },
+        body: blob
+      });
+      if (!response.ok) throw new Error(`Gateway R2 Upload failed with status: ${response.status}`);
+      const json = await response.json();
+      return json.url;
+    }
+
+    // Delete the stored file from the Cloudflare R2 bucket (via the gateway worker)
+    async function deleteFromR2(fileUrl) {
+      if (!fileUrl) return; // nothing stored in R2 for this item
+      let key = "";
+      try {
+        key = decodeURIComponent(new URL(fileUrl).pathname.replace(/^\/+/, ""));
+      } catch (err) {
+        console.warn("Could not parse R2 key from fileUrl:", fileUrl);
+        return;
+      }
+      if (!key) return;
+      const response = await fetch(R2_WORKER_URL, {
+        method: "DELETE",
+        headers: { "X-File-Name": key }
+      });
+      if (!response.ok) throw new Error(`Gateway R2 Delete failed with status: ${response.status}`);
+    }
+
+    // Upload Files directly to active project queue
+    async function handleActiveQueueUpload(files) {
+      const chooseBtn = document.getElementById("activeUploadChooseBtn");
+      if (!chooseBtn) return;
+
+      chooseBtn.disabled = true;
+      chooseBtn.textContent = "Uploading...";
+
+      for (const file of files) {
+        try {
+          const isAudio = file.type === "audio/mpeg" || file.name.toLowerCase().endsWith(".mp3");
+          let fileBlob = file;
+          let fileType = isAudio ? (file.type || "audio/mpeg") : "image/jpeg";
+          let fileName = file.name;
+
+          if (!isAudio) {
+            // Resize wallpaper to standard dimensions
+            fileBlob = await resizeImageTo1620x2880(file);
+            if (fileName.toLowerCase().endsWith(".png")) {
+              fileName = fileName.replace(/\.png$/i, ".jpg");
+            }
+          }
+
+          // Upload file to Cloudflare R2 bucket path
+          const fileUrl = await uploadToR2(fileBlob, fileName, activeProject);
+
+          // Insert database entry
+          const db = dbs[activeProject];
+          const targetQueueRef = ref(db, "wallpaperQueue");
+          const newItemRef = push(targetQueueRef);
+
+          await set(newItemRef, {
+            name: fileName,
+            type: fileType,
+            size: fileBlob.size,
+            isMp3: isAudio,
+            fileUrl,
+            title: "",
+            tags: "",
+            category: "",
+            description: "",
+            status: "queued",
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.error("Queue file upload failed: ", err);
+        }
+      }
+
+      chooseBtn.disabled = false;
+      chooseBtn.textContent = "Choose Files";
+      document.getElementById("activeUploadFilesInput").value = "";
+    }
+
+    // Delete item (removes the Firebase queue entry + the actual file from R2)
+    async function deleteQueueItem(id, name) {
+      if (!confirm(`Are you sure you want to delete "${name || id}" from queue?\nThe file will also be deleted from Firebase & R2 storage.`)) return;
+      const db = dbs[activeProject];
+      const item = queueItems.find(x => x.id === id);
+      try {
+        // 1. Delete the actual file(s) from the Cloudflare R2 bucket (24H sets have 4 files)
+        if (item) {
+          const urlsToDelete = is24h(item) && item.fileUrls
+            ? Object.values(item.fileUrls).filter(Boolean)
+            : (item.fileUrl ? [item.fileUrl] : []);
+          for (const urlToDelete of urlsToDelete) {
+            try {
+              await deleteFromR2(urlToDelete);
+            } catch (err) {
+              console.warn("R2 file delete failed (queue entry will still be removed):", err);
+              alert("Warning: a file could not be deleted from R2 storage. Make sure your deployed worker supports DELETE (latest r2-worker.js).");
+            }
+          }
+        }
+        // 2. Delete the queue entry from Firebase Realtime Database
+        await remove(ref(db, `wallpaperQueue/${id}`));
+      } catch (err) {
+        console.error("Error deleting queue item: ", err);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 24-HOUR WALLPAPER SET MODULE
+    // -------------------------------------------------------------
+    function update24hSlotPreview(slot) {
+      const previewEl = document.getElementById(`slot24hPreview-${slot}`);
+      const slotWrap = document.querySelector(`.slot-24h[data-slot="${slot}"]`);
+      if (!previewEl || !slotWrap) return;
+      const file = selected24hFiles[slot];
+      if (file) {
+        const objUrl = URL.createObjectURL(file);
+        previewEl.innerHTML = `<img src="${objUrl}" alt="${slot} preview" />`;
+        slotWrap.classList.add("filled");
+      } else {
+        const icons = { morning: "fa-cloud-sun", afternoon: "fa-sun", evening: "fa-cloud-moon", night: "fa-moon" };
+        previewEl.innerHTML = `<i class="fas ${icons[slot]}"></i>`;
+        slotWrap.classList.remove("filled");
+      }
+    }
+
+    function refresh24hUploadState() {
+      const btn = document.getElementById("upload24hBtn");
+      const statusEl = document.getElementById("upload24hStatus");
+      if (!btn || !statusEl) return;
+      const pickedCount = SLOTS_24H.filter(s => selected24hFiles[s]).length;
+      btn.disabled = pickedCount !== 4;
+      if (pickedCount === 0) {
+        statusEl.innerHTML = "Select all four time-of-day images to enable upload.";
+      } else if (pickedCount < 4) {
+        statusEl.innerHTML = `Selected <b>${pickedCount}/4</b> images — ${SLOTS_24H.filter(s => !selected24hFiles[s]).map(s => SLOT_LABELS_24H[s]).join(", ")} still missing.`;
+      } else {
+        statusEl.innerHTML = `All <b>4/4</b> images selected. Ready to upload the 24H set!`;
+      }
+    }
+
+    function init24hUploadEvents() {
+      SLOTS_24H.forEach(slot => {
+        const input = document.getElementById(`slot24hInput-${slot}`);
+        const slotWrap = document.querySelector(`.slot-24h[data-slot="${slot}"]`);
+        if (!input || !slotWrap) return;
+        // The slot card is a native <label for="slot24hInput-..."> now, so the
+        // browser opens the file picker by itself — no JS click wiring needed.
+        // (Manual input.click() from a parent handler caused an event-bubbling
+        // loop that blocked the picker in some browsers.)
+        input.addEventListener("change", () => {
+          const file = (input.files || [])[0] || null;
+          const isSupportedImage = file && (["image/jpeg", "image/jpg", "image/png"].includes(file.type) || /\.(jpg|jpeg|png)$/i.test(file.name));
+          selected24hFiles[slot] = isSupportedImage ? file : null;
+          if (file && !isSupportedImage) alert("Only JPG/JPEG/PNG images are supported for 24H wallpaper sets.");
+          update24hSlotPreview(slot);
+          refresh24hUploadState();
+        });
+      });
+
+      const btn = document.getElementById("upload24hBtn");
+      if (btn) btn.addEventListener("click", handle24hSetUpload);
+    }
+
+    async function handle24hSetUpload() {
+      const btn = document.getElementById("upload24hBtn");
+      const statusEl = document.getElementById("upload24hStatus");
+      if (!btn || !statusEl) return;
+      if (SLOTS_24H.some(s => !selected24hFiles[s])) return;
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Uploading...`;
+
+      try {
+        const ts = Date.now();
+        const fileUrls = {};
+        let totalSize = 0;
+
+        for (const slot of SLOTS_24H) {
+          statusEl.innerHTML = `Processing <b>${SLOT_LABELS_24H[slot]}</b> image (resize + upload)...`;
+          const resizedBlob = await resizeImageTo1620x2880(selected24hFiles[slot]);
+          if (resizedBlob.size > 8 * 1024 * 1024) {
+            throw new Error(`${SLOT_LABELS_24H[slot]} image is over 8 MB after resize — Zedge max is 8 MB per image.`);
+          }
+          fileUrls[slot] = await uploadToR2(resizedBlob, `${ts}_${slot}.jpg`, `${activeProject}/24h`);
+          totalSize += resizedBlob.size;
+        }
+
+        const baseName = (selected24hFiles.morning.name || "set").replace(/\.(png|jpe?g)$/i, "");
+        const db = dbs[activeProject];
+        const newItemRef = push(ref(db, "wallpaperQueue"));
+        await set(newItemRef, {
+          name: `${baseName} (24H Set)`,
+          type: "image/jpeg",
+          is24h: true,
+          isMp3: false,
+          size: totalSize,
+          width: 1620,
+          height: 2880,
+          fileUrl: fileUrls.morning,
+          fileUrls,
+          title: "",
+          tags: "",
+          category: "",
+          description: "",
+          status: "queued",
+          createdAt: serverTimestamp()
+        });
+
+        statusEl.innerHTML = `✅ 24H set uploaded &amp; queued successfully!`;
+        selected24hFiles = { morning: null, afternoon: null, evening: null, night: null };
+        SLOTS_24H.forEach(slot => {
+          const input = document.getElementById(`slot24hInput-${slot}`);
+          if (input) input.value = "";
+          update24hSlotPreview(slot);
+        });
+      } catch (err) {
+        console.error("24H set upload failed: ", err);
+        statusEl.innerHTML = `❌ Upload failed: ${err.message}`;
+      }
+
+      btn.innerHTML = `<i class="fas fa-cloud-upload-alt"></i> Upload 24H Set`;
+      refresh24hUploadState();
+    }
+
+    // -------------------------------------------------------------
+    // UNIFIED EDIT / METADATA MODAL & FOCUS ZOOM MODULE
+    // -------------------------------------------------------------
+    function openModal(id) {
+      const item = queueItems.find(x => x.id === id);
+      if (!item) return;
+      currentModalItem = item;
+
+      // Set header
+      document.getElementById("modalItemTitle").textContent = item.title?.trim() || item.name || id;
+  
+      // Compute status elements
+      const statusClass = item.status || "queued";
+      const fileTypeLabel = isMp3(item) ? "Audio Track" : (is24h(item) ? "24-Hour Wallpaper Set" : "Wallpaper Image");
+      const fileTypeIcon = isMp3(item) ? "fa-music" : "fa-images";
+      const statusIcon = statusClass === "uploaded" ? "fa-check-circle" : (statusClass === "processing" ? "fa-spinner fa-spin" : (statusClass === "failed" ? "fa-exclamation-triangle" : "fa-clock"));
+  
+      // Format tags
+      const tagArray = (item.tags || "").split(",").map(t => t.trim()).filter(Boolean);
+      const tagsHtml = tagArray.length > 0 
+        ? tagArray.map(t => `<span class="meta-tag-pill">${t}</span>`).join("")
+        : `<span class="meta-tag-pill empty">No tags defined</span>`;
+
+      // Set meta details
+      document.getElementById("modalMetaInfo").innerHTML = `
+        ${item.isEmergency ? '<div class="modal-badge status-badge" style="background:#e74c3c;color:white;border:none;"><i class="fas fa-bolt"></i> <span><b>EMERGENCY UPLOAD</b></span></div>' : ''}
+        <div class="modal-badge status-badge ${statusClass}">
+          <i class="fas ${statusIcon}"></i> <span><b>Status:</b> ${statusClass.toUpperCase()}</span>
+        </div>
+        <div class="modal-badge type-badge ${isMp3(item) ? 'audio' : 'image'}">
+          <i class="fas ${fileTypeIcon}"></i> <span><b>Type:</b> ${fileTypeLabel}</span>
+        </div>
+        <div class="modal-badge category-badge">
+          <i class="fas fa-folder"></i> <span><b>Category:</b> ${item.category || "UNCLASSIFIED"}</span>
+        </div>
+        <div class="modal-badge size-badge">
+          <i class="fas fa-hdd"></i> <span><b>Size:</b> ${formatBytes(item.size)}</span>
+        </div>
+        <div class="modal-tags-section">
+          <h4><i class="fas fa-hashtag"></i> Active Search Tags</h4>
+          <div class="meta-tags-container">${tagsHtml}</div>
+        </div>
+      `;
+
+      // Pre-fill inputs
+      document.getElementById("modalEditTitle").value = item.title || "";
+      document.getElementById("modalEditTags").value = item.tags || "";
+      document.getElementById("modalEditCategory").value = item.category || "";
+      document.getElementById("modalEditDescription").value = item.description || "";
+
+      // Render previews
+      const imgEl = document.getElementById("modalPreviewImg");
+      const audEl = document.getElementById("modalPreviewAudio");
+      const vizEl = document.getElementById("modalAudioVisualizer");
+      const interactiveEl = document.getElementById("modal24hInteractive");
+      if (interactiveEl) {
+        interactiveEl.style.display = "none";
+      }
+
+      imgEl.style.display = "none";
+      audEl.style.display = "none";
+      if (vizEl) vizEl.style.display = "none";
+      audEl.pause();
+      audEl.src = "";
+
+      const src = item.fileUrl || item.fileBase64 || item.imageBase64 || "";
+
+      if (src) {
+        if (isMp3(item)) {
+          audEl.src = src;
+          audEl.style.display = "block";
+          if (vizEl) {
+            vizEl.style.display = "flex";
+            const trackNameEl = document.getElementById("audioTrackName");
+            if (trackNameEl) trackNameEl.textContent = item.name || "Audio Track";
+          }
+        } else if (is24h(item) && item.fileUrls && interactiveEl) {
+          // 24H set: show interactive time-based preview
+          interactiveEl.style.display = "flex";
+          const previewImg = document.getElementById("modal24hPreviewImg");
+          const timeBtns = interactiveEl.querySelectorAll(".time-btn");
+          
+          if (window.modal24hInterval) clearInterval(window.modal24hInterval);
+          
+          previewImg.src = item.fileUrls["morning"] || item.fileUrl;
+          previewImg.onclick = () => {
+            const activeSlot = interactiveEl.querySelector(".time-btn.active")?.dataset.slot || "morning";
+            const slotUrl = item.fileUrls[activeSlot];
+            if (slotUrl) openFocusZoom(slotUrl, `${item.title?.trim() || item.name || "24H Set"} — ${SLOT_LABELS_24H[activeSlot]}`);
+          };
+          
+          const slots = ["morning", "afternoon", "evening", "night"];
+          let currentSlotIndex = 0;
+          
+          const updatePreview = (index, manual = false) => {
+            if (manual && window.modal24hInterval) {
+              clearInterval(window.modal24hInterval);
+              window.modal24hInterval = null;
+            }
+            currentSlotIndex = index;
+            const slot = slots[currentSlotIndex];
+            interactiveEl.querySelectorAll(".time-btn").forEach(b => b.classList.remove("active"));
+            const activeBtn = interactiveEl.querySelector(`.time-btn[data-slot="${slot}"]`);
+            if (activeBtn) activeBtn.classList.add("active");
+            
+            const slotUrl = item.fileUrls[slot];
+            if (slotUrl) previewImg.src = slotUrl;
+          };
+          
+          timeBtns.forEach(btn => {
+            btn.classList.remove("active");
+            if (btn.dataset.slot === "morning") btn.classList.add("active");
+            
+            const newBtn = btn.cloneNode(true);
+            btn.parentNode.replaceChild(newBtn, btn);
+            
+            newBtn.addEventListener("click", () => {
+              const idx = slots.indexOf(newBtn.dataset.slot);
+              if (idx !== -1) updatePreview(idx, true);
+            });
+          });
+          
+          window.modal24hInterval = setInterval(() => {
+            let nextIndex = (currentSlotIndex + 1) % slots.length;
+            updatePreview(nextIndex);
+          }, 2000);
+        } else {
+          imgEl.src = src;
+          imgEl.style.display = "block";
+          imgEl.title = "Click to open full view focus preview";
+          imgEl.onclick = () => {
+            openFocusZoom(src, item.title?.trim() || item.name || "Focused Image Preview");
+          };
+        }
+      } else {
+        imgEl.onclick = null;
+      }
+
+      // Open overlay
+      document.getElementById("unifiedItemModal").classList.add("open");
+      updateAiGenerateButtonState();
+    }
+
+    function closeModal() {
+      document.getElementById("unifiedItemModal").classList.remove("open");
+      const audEl = document.getElementById("modalPreviewAudio");
+      if (audEl) {
+        audEl.pause();
+        audEl.src = "";
+      }
+      const viz = document.getElementById("modalAudioVisualizer");
+      if (viz) viz.style.display = "none";
+    }
+
+    async function saveModalMetadata() {
+      if (!currentModalItem) return;
+
+      const db = dbs[activeProject];
+      const updateData = {
+        title: document.getElementById("modalEditTitle").value.trim(),
+        tags: document.getElementById("modalEditTags").value.trim(),
+        category: document.getElementById("modalEditCategory").value.trim().toUpperCase(),
+        description: document.getElementById("modalEditDescription").value.trim()
+      };
+
+      try {
+        await update(ref(db, `wallpaperQueue/${currentModalItem.id}`), updateData);
+        closeModal();
+      } catch (err) {
+        console.error("Failed saving metadata: ", err);
+      }
+    }
+
+    async function emergencyUploadModalItem() {
+      if (!currentModalItem) return;
+      if (!confirm(`Mark this item as EMERGENCY?\nIt will bypass normal schedule limits and be uploaded immediately.`)) return;
+
+      const db = dbs[activeProject];
+      const updateData = {
+        isEmergency: true,
+        title: document.getElementById("modalEditTitle").value.trim(),
+        tags: document.getElementById("modalEditTags").value.trim(),
+        category: document.getElementById("modalEditCategory").value.trim().toUpperCase(),
+        description: document.getElementById("modalEditDescription").value.trim()
+      };
+
+      try {
+        await update(ref(db, `wallpaperQueue/${currentModalItem.id}`), updateData);
+        closeModal();
+      } catch (err) {
+        console.error("Failed setting emergency upload: ", err);
+      }
+    }
+
+    async function requeueModalItem() {
+      if (!currentModalItem) return;
+
+      const db = dbs[activeProject];
+      const updateData = {
+        status: "queued",
+        error: null,
+        failedAt: null,
+        processingAt: null
+      };
+
+      try {
+        await update(ref(db, `wallpaperQueue/${currentModalItem.id}`), updateData);
+        closeModal();
+      } catch (err) {
+        console.error("Failed requeueing item: ", err);
+      }
+    }
+
+    async function deleteModalItem() {
+      if (!currentModalItem) return;
+      if (!confirm(`Are you sure you want to delete this file from queue?\nThe file will also be deleted from Firebase & R2 storage.`)) return;
+
+      const db = dbs[activeProject];
+      try {
+        // 1. Delete the actual file(s) from the Cloudflare R2 bucket (24H sets have 4 files)
+        {
+          const urlsToDelete = is24h(currentModalItem) && currentModalItem.fileUrls
+            ? Object.values(currentModalItem.fileUrls).filter(Boolean)
+            : (currentModalItem.fileUrl ? [currentModalItem.fileUrl] : []);
+          for (const urlToDelete of urlsToDelete) {
+            try {
+              await deleteFromR2(urlToDelete);
+            } catch (err) {
+              console.warn("R2 file delete failed (queue entry will still be removed):", err);
+              alert("Warning: a file could not be deleted from R2 storage. Make sure your deployed worker supports DELETE (latest r2-worker.js).");
+            }
+          }
+        }
+        // 2. Delete the queue entry from Firebase Realtime Database
+        await remove(ref(db, `wallpaperQueue/${currentModalItem.id}`));
+        closeModal();
+      } catch (err) {
+        console.error("Failed deleting item: ", err);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // ZOOM PREVIEW MODULE
+    // -------------------------------------------------------------
+    let zoomScale = 1;
+    const zoomTarget = document.getElementById("zoomTargetImg");
+    const zoomTitle = document.getElementById("zoomTargetTitle");
+
+    function applyZoomTransform() {
+      if (zoomTarget) {
+        zoomTarget.style.transform = `scale(${zoomScale})`;
+      }
+      const resetBtn = document.getElementById("zoomResetBtn");
+      if (resetBtn) {
+        resetBtn.textContent = `${Math.round(zoomScale * 100)}%`;
+      }
+    }
+
+    function openFocusZoom(src, title) {
+      if (!src) return;
+      zoomTarget.src = src;
+      zoomTitle.textContent = title || "Focused Image View";
+      zoomScale = 1;
+      applyZoomTransform();
+      document.getElementById("premiumZoomModal").classList.add("open");
+      document.body.style.overflow = "hidden";
+    }
+
+    function closeFocusZoom() {
+      document.getElementById("premiumZoomModal").classList.remove("open");
+      zoomTarget.src = "";
+      document.body.style.overflow = "";
+    }
+
+    // Hook all event listeners when page boots
+    function initializePageEvents() {
+      // Database Account selector
+      const accountSelect = document.getElementById("activeZedgeAccount");
+      accountSelect.value = activeProject;
+      accountSelect.addEventListener("change", () => {
+        connectToDatabase(accountSelect.value);
+      });
+
+      // Modal actions
+      document.getElementById("modalCloseBtnHeader").addEventListener("click", closeModal);
+      document.getElementById("modalCloseBtnFooter").addEventListener("click", closeModal);
+      document.getElementById("modalSaveBtn").addEventListener("click", saveModalMetadata);
+      document.getElementById("modalEmergencyBtn").addEventListener("click", emergencyUploadModalItem);
+      document.getElementById("modalRequeueBtn").addEventListener("click", requeueModalItem);
+      document.getElementById("modalDeleteBtn").addEventListener("click", deleteModalItem);
+
+      // Zoom control buttons
+      document.getElementById("zoomInBtn").addEventListener("click", () => {
+        zoomScale = Math.min(5, zoomScale + 0.2);
+        applyZoomTransform();
+      });
+      document.getElementById("zoomOutBtn").addEventListener("click", () => {
+        zoomScale = Math.max(0.2, zoomScale - 0.2);
+        applyZoomTransform();
+      });
+      document.getElementById("zoomResetBtn").addEventListener("click", () => {
+        zoomScale = 1;
+        applyZoomTransform();
+      });
+      document.getElementById("zoomCloseBtn").addEventListener("click", closeFocusZoom);
+  
+      // Close zooms on clicking black background overlay
+      const zoomOverlay = document.getElementById("premiumZoomModal");
+      zoomOverlay.addEventListener("click", (e) => {
+        if (e.target === zoomOverlay || e.target.id === "zoomViewArea") {
+          closeFocusZoom();
+        }
+      });
+
+      // Esc key closes modals
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          if (document.getElementById("premiumZoomModal").classList.contains("open")) {
+            closeFocusZoom();
+          } else if (document.getElementById("unifiedItemModal").classList.contains("open")) {
+            closeModal();
+          }
+        }
+      });
+
+      // Upload Queue Dropzone triggers
+      const activeChooseBtn = document.getElementById("activeUploadChooseBtn");
+      const activeFilesInput = document.getElementById("activeUploadFilesInput");
+      const activeDropzone = document.getElementById("activeUploadDropzone");
+
+      if (activeChooseBtn && activeFilesInput && activeDropzone) {
+        activeChooseBtn.addEventListener("click", () => activeFilesInput.click());
+        activeFilesInput.addEventListener("change", () => {
+          handleActiveQueueUpload(Array.from(activeFilesInput.files || []));
+        });
+        activeDropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          activeDropzone.style.borderColor = "#ff6b8b";
+          activeDropzone.style.background = "#fff9fa";
+        });
+        activeDropzone.addEventListener("dragleave", () => {
+          activeDropzone.style.borderColor = "#70a1ff";
+          activeDropzone.style.background = "#fcfdff";
+        });
+        activeDropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          activeDropzone.style.borderColor = "#70a1ff";
+          activeDropzone.style.background = "#fcfdff";
+          handleActiveQueueUpload(Array.from(e.dataTransfer.files || []));
+        });
+      }
+
+      // Distribution dropzone triggers
+      const distChooseBtn = document.getElementById("distributeChooseBtn");
+      const distFilesInput = document.getElementById("distributeFilesInput");
+      const distDropzone = document.getElementById("distributeDropzone");
+
+      if (distChooseBtn && distFilesInput && distDropzone) {
+        distChooseBtn.addEventListener("click", () => distFilesInput.click());
+        distFilesInput.addEventListener("change", () => {
+          handleDistributionUpload(Array.from(distFilesInput.files || []));
+        });
+        distDropzone.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          distDropzone.style.borderColor = "#ff6b8b";
+          distDropzone.style.background = "#fff9fa";
+        });
+        distDropzone.addEventListener("dragleave", () => {
+          distDropzone.style.borderColor = "#70a1ff";
+          distDropzone.style.background = "#fcfdff";
+        });
+        distDropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          distDropzone.style.borderColor = "#70a1ff";
+          distDropzone.style.background = "#fcfdff";
+          handleDistributionUpload(Array.from(e.dataTransfer.files || []));
+        });
+      }
+    }
+
+    // -------------------------------------------------------------
+    // GEMINI AI METADATA GENERATION MODULE
+    // -------------------------------------------------------------
+    const ZEDGE_CATEGORIES = [
+      "Animals","Anime","Bollywood","Brands","Cars & Vehicles","Comics",
+      "Designs","Drawings","Entertainment","Funny","Games","Holidays",
+      "Logos","Love","Music","Nature","News & Politics","Other","Pattern",
+      "People","Sayings","Space","Spiritual","Sports","Technology"
+    ];
+
+    function getGeminiApiKey() {
+      try { return localStorage.getItem("geminiApiKey") || ""; } catch(e) { return ""; }
+    }
+
+    function getAllMistralKeys() {
+      try {
+        const stored = localStorage.getItem("mistralKeys");
+        return stored ? JSON.parse(stored) : [];
+      } catch(e) { return []; }
+    }
+
+    function saveAllMistralKeys(keys) {
+      try { localStorage.setItem("mistralKeys", JSON.stringify(keys)); } catch(e) {}
+    }
+
+    function getKeyIndex() {
+      try { return parseInt(localStorage.getItem("mistralKeyIndex") || "0", 10); } catch(e) { return 0; }
+    }
+
+    function setKeyIndex(i) {
+      try { localStorage.setItem("mistralKeyIndex", String(i)); } catch(e) {}
+    }
+
+    function getCurrentKey() {
+      const keys = getAllMistralKeys();
+      if (keys.length === 0) return "";
+      const idx = getKeyIndex();
+      return keys[idx % keys.length] || "";
+    }
+
+    function rotateToNextKey() {
+      const keys = getAllMistralKeys();
+      if (keys.length === 0) return "";
+      const idx = getKeyIndex();
+      const next = (idx + 1) % keys.length;
+      setKeyIndex(next);
+      return keys[next] || "";
+    }
+
+    function getGeminiModel() {
+      try { return localStorage.getItem("geminiModel") || "mistral-small-latest"; } catch(e) { return "mistral-small-latest"; }
+    }
+
+    function openSettingsModal() {
+      const apiKeyInput = document.getElementById("settingsApiKey");
+      const modelSelect = document.getElementById("settingsModel");
+      const keys = getAllMistralKeys();
+      if (apiKeyInput) apiKeyInput.value = keys.join("\n");
+      if (modelSelect) modelSelect.value = getGeminiModel();
+      document.getElementById("settingsModal").classList.add("open");
+    }
+
+    function closeSettingsModal() {
+      document.getElementById("settingsModal").classList.remove("open");
+    }
+
+    function saveSettings() {
+      const raw = document.getElementById("settingsApiKey").value.trim();
+      const model = document.getElementById("settingsModel").value;
+      const keys = raw.split("\n").map(k => k.trim()).filter(k => k.length > 10);
+      try {
+        saveAllMistralKeys(keys);
+        localStorage.setItem("geminiModel", model);
+        setKeyIndex(0);
+      } catch(e) {}
+      closeSettingsModal();
+    }
+
+    function toggleApiKeyVisibility() {
+    }
+
+    function updateAiGenerateButtonState() {
+      const btn = document.getElementById("modalAiGenerateBtn");
+      if (!btn || !currentModalItem) return;
+      const isAudio = isMp3(currentModalItem);
+      const keys = getAllMistralKeys();
+      btn.style.display = isAudio ? "none" : "flex";
+      btn.disabled = keys.length === 0;
+      if (keys.length === 0 && !isAudio) {
+        btn.title = "Add Mistral API keys in Settings first";
+      } else {
+        btn.title = `Auto-generate metadata using AI (${keys.length} keys loaded)`;
+      }
+    }
+
+    async function imageUrlToBase64(url) {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(",")[1];
+          resolve({ base64, mimeType: blob.type || "image/jpeg" });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function generateMetadataWithAI() {
+      if (!currentModalItem) return;
+      const keys = getAllMistralKeys();
+      if (keys.length === 0) {
+        openSettingsModal();
+        const statusEl = document.getElementById("aiGenerateStatus");
+        if (statusEl) {
+          statusEl.className = "ai-generate-status error";
+          statusEl.textContent = "Please add at least one Mistral API key in Settings.";
+        }
+        return;
+      }
+
+      const imgSrc = is24h(currentModalItem) && currentModalItem.fileUrls
+        ? (currentModalItem.fileUrls.morning || currentModalItem.fileUrl || "")
+        : (currentModalItem.fileUrl || "");
+      if (!imgSrc) {
+        alert("No image URL found for this item.");
+        return;
+      }
+
+      const btn = document.getElementById("modalAiGenerateBtn");
+      const statusEl = document.getElementById("aiGenerateStatus");
+
+      btn.classList.add("generating");
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+      btn.disabled = true;
+      statusEl.className = "ai-generate-status loading";
+      statusEl.textContent = "Analyzing image with AI...";
+
+      try {
+        const { base64, mimeType } = await imageUrlToBase64(imgSrc);
+        const model = getGeminiModel();
+        const apiUrl = "https://api.mistral.ai/v1/chat/completions";
+
+        const categoryList = ZEDGE_CATEGORIES.join(", ");
+        const prompt = `Analyze this wallpaper image and generate Zedge publishing metadata.
+Respond ONLY with valid JSON (no markdown, no code fences).
+
+Required JSON format:
+{"title":"short 2-3 word title only","tags":"tag1, tag2, tag3, tag4, tag5, tag6, tag7, tag8","category":"EXACT category from list","description":"2-3 sentence publishing description"}
+
+Valid categories (pick EXACTLY one): ${categoryList}
+
+STRICT RULES (Zedge Policy Compliance):
+- Tags: 8-10 relevant lowercase search tags, comma separated. MUST accurately describe the image content only.
+- Do NOT include any brand names, logos, trademarks, character names from comics/games/movies/TV shows, or any copyrighted characters.
+- Do NOT reference celebrities, real people, or public figures.
+- Do NOT include tags related to violence, drugs, hate speech, sexual content, nudity, or anything illegal.
+- Do NOT add misleading tags that don't accurately describe the image.
+- Tags must be generic and descriptive (e.g. "sunset, ocean, waves, beach, nature, landscape, clouds, golden" NOT "iphone wallpaper" or brand names).
+- Title: MUST be only 2-3 words maximum. Short, catchy, no sentences. Must not contain trademarked terms.
+- Category: MUST be one from the list above (exact match).
+- Description: 2-3 sentences describing the wallpaper for publishing. Must not reference copyrighted material.
+- Response: ONLY the JSON object, nothing else.`;
+
+        const payload = {
+          model: model,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: `data:${mimeType};base64,${base64}` }
+              ]
+            }
+          ],
+          temperature: 0.4,
+          max_tokens: 500
+        };
+
+        let lastError = null;
+        const maxAttempts = keys.length;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const apiKey = getCurrentKey();
+          try {
+            const apiResponse = await fetch(apiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${apiKey}`
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (apiResponse.status === 401 || apiResponse.status === 429) {
+              rotateToNextKey();
+              statusEl.textContent = `Key ${attempt + 1}/${maxAttempts} failed, trying next...`;
+              continue;
+            }
+
+            if (!apiResponse.ok) {
+              const errData = await apiResponse.json().catch(() => ({}));
+              throw new Error(errData?.error?.message || `API error: ${apiResponse.status}`);
+            }
+
+            const data = await apiResponse.json();
+            const text = data?.choices?.[0]?.message?.content || "";
+
+            let parsed;
+            try {
+              const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+              parsed = JSON.parse(cleaned);
+            } catch(e) {
+              throw new Error("Failed to parse AI response. Please try again.");
+            }
+
+            if (parsed.title) document.getElementById("modalEditTitle").value = parsed.title;
+            if (parsed.tags) document.getElementById("modalEditTags").value = parsed.tags;
+            if (parsed.category) document.getElementById("modalEditCategory").value = parsed.category.toUpperCase();
+            if (parsed.description) document.getElementById("modalEditDescription").value = parsed.description;
+
+            statusEl.className = "ai-generate-status success";
+            statusEl.textContent = "Metadata generated successfully!";
+            lastError = null;
+            break;
+          } catch(err) {
+            lastError = err;
+            rotateToNextKey();
+            if (attempt < maxAttempts - 1) {
+              statusEl.textContent = `Key failed, trying next... (${attempt + 1}/${maxAttempts})`;
+            }
+          }
+        }
+
+        if (lastError) {
+          throw lastError;
+        }
+      } catch(err) {
+        console.error("AI metadata generation failed:", err);
+        statusEl.className = "ai-generate-status error";
+        statusEl.textContent = "Error: " + err.message;
+      }
+
+      btn.classList.remove("generating");
+      btn.innerHTML = '<i class="fas fa-wand-magic-sparkles"></i> Generate with AI';
+      btn.disabled = false;
+      updateAiGenerateButtonState();
+    }
+
+    // -------------------------------------------------------------
+    // APP INITIALIZATION / ENTRYPOINT
+    // -------------------------------------------------------------
+    async function initApp() {
+      setupRouter();
+      initializePageEvents();
+      init24hUploadEvents();
+      updateDistributionVisualNodes();
+      setDistributionStatus("Waiting for image selection...");
+
+      // Auto-load default Mistral keys if none saved
+      try {
+        const existing = localStorage.getItem("mistralKeys");
+        if (!existing || JSON.parse(existing).length === 0) {
+          const defaultKeys = ["wXFCsmmPgZb0KBYDQb1vVEHrevO9DxZl","NAsd2c2R58SWPd8x9XnZYdJxOqDE0m28","WJL70yBR5jWJnMUJrL0Wst6EBsvITdmb","73YfdXAz0gDzwgSzOWsMXgcVuwaaJMy0","cTq5smUFjrRq6uKwHtE00DO4BWf2jHNg","5YuzhSy4KN2N9Ga9SoGDOjIlWrd5Dwpi","frNeyxEbzP3zd8vHrio1sg5PZqVMrLHm","QgVrotkIZPNcieM2XtEc4EUGBAoOS1o4","c5eg5t6zzVtKaEFO2xH7s2nQ7xqQJpym","ccVDyCIgj32JkuOW70GHbalpnHybxkfT","8Yuu3BFrYc5U5aOl0qswnDGbFT3GLQRT","uIGEGcYTt7mkhaR14DoBmi5zXCVMEYFk","a9vEEBTSu86rKHFlWgHOmRRxziXB7ml2","lVtdGW94gqPTIabUJKjG2sCm7x0pIi2K","kqadc3YtU2u5BfCPGVK7WbJK4jntUE89","StZZoOd8OlXfj4L2IIli7WZLJjCIuQfE","beFXydDILA1SmNO7qMOLqdYcf5DMV4Su","GwF53Mvo3MK7Fw4gDLsEddY5YWkDYX8V","cQ8770aYrt1sGWBwcsOkrTEUyGXycbB8","PJaiBbXWbpztKitWWLsuKcCsrGk6jZZL","UBNwLLVSUSebPQRwop2O8p0qj3Hyk0Of","vcLsOvxOQF5iY8gyKGm16rhKZa2Z0IDg","soD0lxXH0wkmw72aDf96zuFhzrFnupES","Z5khZxIcEgch6A1gJwkz69HbCdLX2Obz","MEYbfM3nf8t2ccKK8DEYP59tVrjRZRLr","QRPH8Y1HcN5DRAUSXcvTVSdnjdwOcuvX","Ql6a4Y2X8fq6cEUilDFI4KCDGNu7auV4","bPjiNZf7vcErdfLXkUHaxGRAkiHTiEfl","RMPemuZL5rpQ2CiqpNiDmlbHuxNTHt9i","weMHi8jFMpOmr7IRQMcVjF08YM4pW7tC","OgZMa8krBC02URXpigY8hRdF3dkXbOLB","zDPK0uUoaZNj6cMw9GsgYBfVeuHZDiSg","YWBI3T9FbFv1PoCDFQZZQDbH0qRu4hcj","WmAa7OPq2DeGFfkKNcEbsciXgyoLcNAu","d0H2MBW5hkXd5XtorPkvAKfFpXcmUz7Q","AzKEr2QnFONlBfTtNXLrzsFNKSOew8aX","81U8PSFkmrxX5iS8pAITmctk1h7F6aYF","bkGjWmw8pGm6Vrg6IDunDIAw88dfs5Xz","GTLh5HDjhAq8FipTj6U2E5EJ1ae0aJ69","goy0is5odptBClgfieD8q0O8WYDlbSKV","sLZ3bm4HcuVukSObiURECGaiCkKosqF6","q3KToLuDblcB9fCiMlJl4p1rgCpDSG3q","fcW87zaBuVVBEObIB0xpJRCxp74zkAFQ","uDGevMWjPp865y5smyyEN9QfLGIijDYO","hVdfjV4T40DeFQxxkaOtb9xPx1ffskNL","JE1UfH7nbsydBlDFA0OP4rFNVOOhLZO9","B0mvkCr75DRLDDEoSQqho8Et1l7Kxa1h","qFfPjepCjVHQHGFtlJnfqZWYQfvoMLzW","XU0CkSYLM8r3tNLDhkKC8aCdQOkgYSNa","G6miSZ96G1nZDFhigdW9aM0qKBVZAgdm","reF2sEuJBqCNHjW1ZzKLaDYknTL7aGaW","Zb5zUtItbefjHuCDiSDkAEiOR5RUBBKW","UopPXaQF65bEsyiUG8SqvpIlyj5DrZMI","cqr8PyscnQYqWEhbexguT6C4TBAJ0Evf","KzdCFwqfhS41x3tkMfMGU4kwCIxnK8eL","vtfB3nOLPYUj9MMJ8cx5rSiBcqs9meMx","4ONmV3UiZs959AL5SZPzPEfgMQo1Q3YY","9QboudzwOedlpV0hhlL0fm8a8uID69Gj","wPXyVm5zLqAIKvXjX3iLYDGjcwNaY3NP","fBaQCu18iXRY4nFIUrhJ4vJgSWZ52nGk","P5itVGhOTrIQwdIF0Q1d8QAChDl0KdVw","ecOWx7cOPQzVdl6fNkInCHy7CDuZ3IsE","BjsKGPmRj8ezheCnsDSJVcgsEXLUHapL","qFbVfPo52JUW6Qt0Iq7BDQTWPQEfaI90","pRx8XcMJKpwl2bR8PXuyFThHAFTlxNW3","fbGHaOhb9tBphlr5DCGewG2kIDUTvyJ9","O6OKHFE478MWO3BDNcTkWo55n0KGZMJZ","bsmtQtq32xD1b0vVYZmkkbiPFikVFmcW","GISw9P4MM9CBxo5PMIyOqDofEDQ2qcY6","S4EJMWAvyMIgtjoMQn57fNJbkmi9zSxB","96SJt0jwjCdLJeQTkZ5euLQHFMsvZvMs","j1dBeA76xMG30yNMBNEhqhHYo0QrXviC","yvXFvqPjoA4xgrfNIVCuLUDAANFKCCH1","YR13v7YOsO3HJvLNtmqunZsdTxlSYn7j","c8yDrSPrauL2ccO0um0RFpdm8wsllFmF","iACkkP5xPqWNAeNmHipLyayp04yPJTQT","FT61SmNshboGkcyYKF2M03rLoRdBxq15","nBLh1Q6mf9gRAIAtEbzAs1ArnVt9CJxE","St1lMdS9sgMNKMQCJhLxxj5mpdCFH1NH","DpweLFVdiMf8HUggX1YdGBzlyjBVrRK5","hk8dh5OacO1ZrGNK0iwVYdkHZCslMRe7","IIh1oUXDMx6GuelXhIHFuSoM5EIgaJa1","aeagyoX8IILsUgNjiUn7iPwwEKyBFcgB","CDOoZwkiEsNmJsJJLS04YQelaxXvljyW","IK7fwXzKuWOPXXY1sg8y5oGoVYxisKd3","GkBVApBgmLgImACWeUMSlybYa4zwKOGT","DpVo1jkQ9AKcMEfFvt7oZGyqixzjpdWY","S5TaLvbsGmcrzhcPZYACV7n55CsOqBpd","lhoMSoBeR9gnayWpMQ3uVTREBBGEluic","Nq4qvQfTugQxFO6o6ZaAYFvwAn6xRNlP","spPLvENACwqYGh9f5Vc8YRuODTorqahK","LH0cQqRqCKiyI3oL0IR114E7EWeEB09m","Az5Zu4m9IsqDOCFUXiROq8g4x9L1IFKZ","BDd2UQkAz7cQGwwKyuz0dwmunNsfVqNp","a0MHbQ5CNF2itvrVKnKuaW5J4sdEmUFK","48x7Td6gbW1ixZnYALJILx5vEgMzkzhl","3lS0MZcF9mpbj3zGPL4B1dDI0GMWd7fc","vVAOA4p6WbVcNImu506qA6m2RNZdaDVQ","iFamdEExa9mExiQYybimiN0ZDBANOa9E","THwHqM8RjwTAWSTNXzYRQtW8BsYWdCG8","5CQG7BvCvvLvoWbliSsbNfJSsHcCFvcz","NcooD35BgUtTcIWu3KOoGR3EIJ9eZu2Z","fLDyCln0SVfrMOxslHD3C4wc85KibNeg","y0SKO9RF57ZRt5i1Rzknl3XOAFym7f5c","sxXrjSjobt3j18ItAZuStJAYZEYIaYIY","lqqoUIKjNVVxQ7Cq4YPm5UlzljvkHciR","F43ABRwDM2jNRtVJ7lnODNC3EoRo5q9Y","Pld9pIBu2ZlSEnL8pjT9f8z0VEdgUDJU","x7dj4tIU7ZNgnF5JgOcOJSZbjLBXrPoI","ItJzKmIx5HpNxw49XRBgOeD81nHnYFE6","GGt3mZARLHE13HULDCQsywUE4QTx9Pyq","zVD87BikaIP3FzA4RJccD7VyZhcTwIg4","X5lKdLUvQ0vlAI1tU5lpkJFprZIbIpVW","qSugnKrUc9FpDKxL2EdqPic2pDmEeXeS","093V4lRPcMWMETBhdsqqAO2h1T5l4bmx","fNJx634lHyrhxjdfZgCRyrNRzWm6hvrS","Dl6wkp4KDFvLnSPDH26FWrzM4JE5dV3o","J2V7ik6zcBWwnkjV1kwaBy4S8p52ADcU","ZR5pm2ovE20jvugHLKFhieafbGoveRkd","AYGF7YEHkhjsUIIqLTqK9bjONB9u7myJ"];
+          saveAllMistralKeys(defaultKeys);
+          setKeyIndex(0);
+        }
+      } catch(e) {}
+
+      // Settings Modal listeners
+      document.getElementById("openSettingsBtn").addEventListener("click", openSettingsModal);
+      document.getElementById("settingsCloseBtn").addEventListener("click", closeSettingsModal);
+      document.getElementById("settingsCloseFooterBtn").addEventListener("click", closeSettingsModal);
+      document.getElementById("settingsSaveBtn").addEventListener("click", saveSettings);
+
+      // Settings modal overlay close
+      document.getElementById("settingsModal").addEventListener("click", (e) => {
+        if (e.target === document.getElementById("settingsModal")) closeSettingsModal();
+      });
+
+      // AI Generate button
+      document.getElementById("modalAiGenerateBtn").addEventListener("click", generateMetadataWithAI);
+
+      // Load database
+      await connectToDatabase(activeProject);
+    }
+
+    // Boot the SPA
+    initApp();
+  </script>
+</body>
+</html>

@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#14062E</color>
+    <color name="primary_pink">#FF6B8B</color>
+    <color name="primary_blue">#70A1FF</color>
+    <color name="accent_violet">#6C5CE7</color>
+    <color name="success_green">#2ECC71</color>
+    <color name="warning_orange">#F0932B</color>
+    <color name="danger_red">#FF4757</color>
+    <color name="dark_header">#101827</color>
+    <color name="dark_header_nav">#1A2332</color>
+    <color name="bg_color">#F7F9FC</color>
+    <color name="surface_color">#FFFFFF</color>
+    <color name="text_color">#2C3A47</color>
+    <color name="text_muted">#8395A7</color>
+    <color name="border_color">#EEF2F7</color>
+    <color name="splash_bg_start">#1E272E</color>
+    <color name="splash_bg_end">#2C3E50</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
 </resources>

@@ -1,8 +1,24 @@
-# Keep Firebase RTDB model classes (reflection-based deserialization)
--keep class com.zedge.automation.data.** { *; }
--keepattributes Signature
+-optimizationpasses 5
+-dontusemixedcaseclassnames
+-dontskipnonpubliclibraryclasses
+-dontpreverify
 -keepattributes *Annotation*
+-keepattributes Signature
+-keepattributes InnerClasses,EnclosingMethod
 
-# OkHttp
--dontwarn okhttp3.**
--dontwarn okio.**
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
+
+-keep class * extends android.webkit.WebChromeClient { *; }
+-keep class * extends android.webkit.WebViewClient { *; }
+-keep class com.zedge.automationhub.** { *; }
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-dontwarn javax.annotation.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**

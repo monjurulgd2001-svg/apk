@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/splash_gradient_bg"
+    android:gravity="center">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_gravity="center">
+
+        <ImageView
+            android:id="@+id/splashIcon"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/ic_splash_bolt"
+            android:contentDescription="App Icon" />
+
+        <TextView
+            android:id="@+id/splashTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Automation Hub"
+            android:textSize="28sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:fontFamily="sans-serif-medium"
+            android:layout_marginTop="16dp" />
+
+        <TextView
+            android:id="@+id/splashSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Loading data streams..."
+            android:textSize="14sp"
+            android:textColor="#A0AEC0"
+            android:fontFamily="sans-serif"
+            android:layout_marginTop="8dp" />
+
+        <ProgressBar
+            android:layout_width="120dp"
+            android:layout_height="4dp"
+            android:layout_marginTop="32dp"
+            android:progressDrawable="@drawable/splash_progress"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:indeterminate="true" />
+
+    </LinearLayout>
+
+</FrameLayout>
